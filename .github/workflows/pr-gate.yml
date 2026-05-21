@@ -17,16 +17,11 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const body = context.payload.pull_request.body || '';
             const prNumber = context.payload.pull_request.number;
             const owner = context.repo.owner;
             const repo = context.repo.repo;
 
             const APPROVED_LABELS = ['feature: accepted', 'bug: confirmed'];
-
-            // Extract issue numbers from "closes/fixes/resolves #N" patterns
-            const refs = [...body.matchAll(/(?:closes?|fixes?|resolves?)\s+#(\d+)/gi)];
-            const issueNumbers = refs.map(m => parseInt(m[1]));
 
             const close = async (message) => {
               await github.rest.issues.createComment({
@@ -38,32 +33,51 @@ jobs:
               core.setFailed('PR closed: ' + message.split('\n')[0]);
             };
 
-            if (issueNumbers.length === 0) {
+            // Use GitHub's own closing-issue parser via GraphQL — more reliable than
+            // body regex and handles all keyword variants (close, closes, closed, fix,
+            // fixes, fixed, resolve, resolves, resolved). Note: linking an issue via
+            // the sidebar "Development" section does NOT count; the keyword must appear
+            // in the PR description text.
+            const result = await github.graphql(`
+              query($owner: String!, $repo: String!, $number: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  pullRequest(number: $number) {
+                    closingIssuesReferences(first: 10) {
+                      nodes {
+                        number
+                        labels(first: 20) {
+                          nodes { name }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            `, { owner, repo, number: prNumber });
+
+            const closingIssues = result.repository.pullRequest.closingIssuesReferences.nodes;
+
+            if (closingIssues.length === 0) {
               await close(
                 `👋 Thanks for the PR! It's been automatically closed because no linked issue was found.\n\n` +
-                `Every PR needs to reference an approved issue:\n` +
+                `Every PR needs to reference an approved issue using a closing keyword in the PR description text:\n` +
+                `\`\`\`\nCloses #123\n\`\`\`\n` +
                 `- Bug fixes → an issue labeled \`bug: confirmed\`\n` +
                 `- Features → an issue labeled \`feature: accepted\`\n\n` +
-                `Include a line like \`Closes #123\` in your PR description, then reopen once the linked issue has the right label. ` +
+                `> **Note:** Linking an issue via the GitHub sidebar ("Development" section) is not sufficient — ` +
+                `the \`Closes #N\` keyword must appear in the PR description text.\n\n` +
                 `See [CONTRIBUTING.md](../blob/master/CONTRIBUTING.md) for the full process.`
               );
               return;
             }
 
             let approved = false;
-            let foundLabels = [];
 
-            for (const num of issueNumbers) {
-              try {
-                const { data: issue } = await github.rest.issues.get({ owner, repo, issue_number: num });
-                const labels = issue.labels.map(l => l.name);
-                foundLabels = foundLabels.concat(labels);
-                if (APPROVED_LABELS.some(l => labels.includes(l))) {
-                  approved = true;
-                  break;
-                }
-              } catch (e) {
-                // Issue not found — treat as not approved
+            for (const issue of closingIssues) {
+              const labels = issue.labels.nodes.map(l => l.name);
+              if (APPROVED_LABELS.some(l => labels.includes(l))) {
+                approved = true;
+                break;
               }
             }
 

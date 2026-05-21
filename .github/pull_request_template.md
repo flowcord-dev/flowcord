@@ -2,7 +2,7 @@
 
 Closes #
 
-> Every PR must reference an approved issue. Bug fixes require a `bug: confirmed` issue; features require a `feature: accepted` issue. PRs without a linked approved issue will be automatically closed.
+> Every PR must reference an approved issue using a closing keyword in this description text (e.g. `Closes #123`). Linking via the GitHub sidebar is not sufficient. Bug fixes require a `bug: confirmed` issue; features require a `feature: accepted` issue. PRs without a linked approved issue will be automatically closed.
 
 ## What changed and why
 
