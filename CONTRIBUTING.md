@@ -1,18 +1,18 @@
 # Contributing to FlowCord
 
-Thanks for your interest in contributing. This document explains how contributions work and why the process is structured the way it is.
+Hey, thanks for wanting to contribute — it genuinely means a lot. This doc explains how the process works and, more importantly, *why* it's set up this way so it actually makes sense rather than just feeling like red tape.
 
 ---
 
-## Philosophy
+## A bit of context
 
-FlowCord has a roadmap. Features are designed to work together, fit the existing architecture, and handle edge cases that aren't always obvious from the outside. A PR that implements a feature in a way that doesn't extend cleanly, or that duplicates work already in progress, is a net negative for everyone involved — the contributor wastes time building something that won't merge, and the maintainer wastes time reviewing it.
+FlowCord has a roadmap, and features are designed to fit together in ways that aren't always obvious from the outside. The architecture has some specific invariants — things that need to hold true for everything to work cleanly — and a PR that cuts across those, or duplicates something already in progress, ends up being a net loss for everyone: you spend time building something that won't merge, and I spend time reviewing something I have to close. Nobody wants that.
 
-**Quality over quantity.** One well-considered PR is worth more than ten that need to be closed.
+The process below exists to catch those situations *before* code gets written, not after. One well-considered contribution is worth a lot more than ten that don't land.
 
 ---
 
-## The Process
+## The process
 
 ```
 1. Open an issue
@@ -24,67 +24,66 @@ FlowCord has a roadmap. Features are designed to work together, fit the existing
 4. Open a PR that references the issue
 ```
 
-**PRs opened without a corresponding approved issue are automatically closed.** This isn't personal — it's a prerequisite. The automation is there so neither of us wastes time.
+**PRs opened without an approved issue are automatically closed.** Not personal at all — it's just a safeguard to protect your time as much as mine. If your PR gets caught by the automation, no harm done; get the issue approved and reopen it.
 
 ### For bug fixes
 
 1. Open a [Bug Report](https://github.com/flowcord-dev/flowcord-core/issues/new?template=bug_report.yml)
-2. A maintainer will reproduce the issue and apply `bug: confirmed`
-3. Once confirmed, open a PR referencing the issue with `Closes #N` in the description
+2. A maintainer will reproduce it and apply `bug: confirmed`
+3. Once confirmed, open a PR with `Closes #N` in the description
 
 ### For new features
 
 1. Open a [Feature Request](https://github.com/flowcord-dev/flowcord-core/issues/new?template=feature_request.yml)
-2. Describe the problem, your proposed solution, and alternatives you considered
-3. Discussion happens in the issue — **including architecture**. If your proposed approach doesn't fit the existing design, that conversation needs to happen before you write any code
-4. A maintainer applies `feature: accepted` and may outline the expected approach
-5. Once accepted, open a PR referencing the issue
+2. Describe the problem, your proposed solution, and any alternatives you considered
+3. Discussion — including architecture — happens in the issue. If the approach needs adjusting to fit the existing design, that's the right place to work it out, before any code gets written
+4. A maintainer applies `feature: accepted` and may sketch out the expected approach
+5. Then go build it and open a PR referencing the issue
 
 ---
 
 ## Architecture
 
-Before proposing or implementing anything non-trivial, read [ARCHITECTURE.md](./ARCHITECTURE.md). FlowCord's session lifecycle, rendering pipeline, navigation system, and state architecture have specific invariants that new code must respect.
+Before proposing or implementing anything non-trivial, it's worth reading [ARCHITECTURE.md](./ARCHITECTURE.md). It covers the session lifecycle, rendering pipeline, navigation system, and state architecture — the stuff that new features need to play nicely with.
 
-If your feature would require changes to core architecture, say so explicitly in the issue. That discussion is part of the approval process, not something to figure out mid-implementation.
+If your idea would touch core architecture, mention it explicitly in the issue. That conversation is part of the approval, not a surprise to save for the PR.
 
 ---
 
-## On AI-Assisted Development
+## On AI-assisted development
 
-AI tools are not banned. But the bar for contribution doesn't change based on how you wrote the code.
+AI tools are totally fine to use. The bar for contributions doesn't change based on how the code got written though — it's still on you to understand what you're submitting.
 
-**You are responsible for every line you submit.** If a reviewer asks why you made an architectural decision and you can't answer, the PR will be closed. "The AI suggested it" is not an explanation.
+If a reviewer asks why a particular design decision was made and the honest answer is "I'm not sure, the AI wrote it that way," the PR will be closed. That's not a knock on using AI — it's just that "I understand this code" is the baseline for any contribution, regardless of tooling.
 
-Practically, this means:
-- Don't submit code you don't understand
+In practice that means:
 - Read through the full diff before opening a PR
-- If you used AI to generate an implementation, verify it against the existing architecture yourself before submitting
-- Reviewers will ask questions. Be prepared to answer them
+- Verify any AI-generated code against the existing architecture yourself
+- Be ready to talk through your decisions in review
 
-The PR template includes two AI-related checkboxes: one for disclosing use of AI tools (no judgment), and one attesting that you understand the code you're submitting. Both are expected to be filled out honestly.
-
----
-
-## Code Standards
-
-- **TypeScript**: Strict mode. No `any` without justification.
-- **Tests**: New behavior requires tests. FlowCord has an in-house interaction simulator — use it. Look at existing tests for patterns.
-- **Style**: Follow the existing conventions in the file you're editing. Don't reformat unrelated code.
-- **Commits**: Write a clear commit message that describes *why* the change was made, not just what it does.
+The PR template has two AI-related checkboxes: one for disclosing that you used AI tools (zero judgment), and one attesting that you understand the code you're submitting. Fill them out honestly.
 
 ---
 
-## What Gets Auto-Closed
+## Code standards
+
+- **TypeScript**: Strict mode. No `any` without a good reason.
+- **Tests**: New behavior needs tests. FlowCord has an in-house interaction simulator — use it. Existing tests are the best guide for patterns.
+- **Style**: Match the conventions in whatever file you're editing. Don't reformat unrelated code.
+- **Commits**: Write commit messages that explain *why*, not just what.
+
+---
+
+## What gets auto-closed
 
 - PRs with no linked issue
 - PRs where the linked issue doesn't have `bug: confirmed` or `feature: accepted`
-- PRs that implement a feature not on the roadmap or not yet approved
+- PRs implementing something not on the roadmap or not yet approved
 
-If your PR was auto-closed and you think it was in error, comment on the linked issue.
+If your PR was auto-closed and you think it shouldn't have been, drop a comment on the linked issue.
 
 ---
 
-## Questions?
+## Not sure if your idea fits?
 
-If you're unsure whether an idea fits, ask in [Discord](https://discord.gg/tcTqa5aKh9) before filing an issue. It's faster and lower friction for everyone.
+Come ask in [Discord](https://discord.gg/tcTqa5aKh9) before filing an issue. It's a much lower-friction way to gut-check an idea, and way faster than going back and forth in an issue thread.
