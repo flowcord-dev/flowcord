@@ -1,0 +1,100 @@
+name: PR Gate
+
+on:
+  pull_request:
+    types: [opened, reopened, edited]
+    branches: [master, develop]
+
+jobs:
+  check-linked-issue:
+    name: Require approved linked issue
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      issues: read
+    steps:
+      - name: Check for approved linked issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const APPROVED_LABELS = ['feature: accepted', 'bug: confirmed'];
+
+            const close = async (message) => {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: prNumber, body: message,
+              });
+              await github.rest.pulls.update({
+                owner, repo, pull_number: prNumber, state: 'closed',
+              });
+              core.setFailed('PR closed: ' + message.split('\n')[0]);
+            };
+
+            // Use GitHub's own closing-issue parser via GraphQL — more reliable than
+            // body regex and handles all keyword variants (close, closes, closed, fix,
+            // fixes, fixed, resolve, resolves, resolved). Note: linking an issue via
+            // the sidebar "Development" section does NOT count; the keyword must appear
+            // in the PR description text.
+            const result = await github.graphql(`
+              query($owner: String!, $repo: String!, $number: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  pullRequest(number: $number) {
+                    closingIssuesReferences(first: 10) {
+                      nodes {
+                        number
+                        labels(first: 20) {
+                          nodes { name }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            `, { owner, repo, number: prNumber });
+
+            const closingIssues = result.repository.pullRequest.closingIssuesReferences.nodes;
+
+            if (closingIssues.length === 0) {
+              await close(
+                `👋 Thanks for the PR! It's been automatically closed because no linked issue was found.\n\n` +
+                `Every PR needs to reference an approved issue using a closing keyword in the PR description text:\n` +
+                `\`\`\`\nCloses #123\n\`\`\`\n` +
+                `- Bug fixes → an issue labeled \`bug: confirmed\`\n` +
+                `- Features → an issue labeled \`feature: accepted\`\n\n` +
+                `> **Note:** Linking an issue via the GitHub sidebar ("Development" section) is not sufficient — ` +
+                `the \`Closes #N\` keyword must appear in the PR description text.\n\n` +
+                `See [CONTRIBUTING.md](../blob/master/CONTRIBUTING.md) for the full process.`
+              );
+              return;
+            }
+
+            let approved = false;
+
+            for (const issue of closingIssues) {
+              const labels = issue.labels.nodes.map(l => l.name);
+              if (APPROVED_LABELS.some(l => labels.includes(l))) {
+                approved = true;
+                break;
+              }
+            }
+
+            if (!approved) {
+              await close(
+                `👋 Thanks for the PR! It's been automatically closed because the linked issue hasn't been approved yet.\n\n` +
+                `The referenced issue needs one of these labels before a PR can be opened:\n` +
+                `- \`bug: confirmed\` — for confirmed bugs\n` +
+                `- \`feature: accepted\` — for approved feature requests\n\n` +
+                `If the issue is still in discussion, please wait for a maintainer to apply the label. ` +
+                `Feel free to reopen this PR once that's done. ` +
+                `See [CONTRIBUTING.md](../blob/master/CONTRIBUTING.md) for the full process.`
+              );
+              return;
+            }
+
+            await github.rest.issues.createComment({
+              owner, repo, issue_number: prNumber,
+              body: `✅ Linked issue check passed — this PR references an approved issue.`,
+            });

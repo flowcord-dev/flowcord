@@ -1,0 +1,44 @@
+name: Feature Request
+description: Propose a new feature or enhancement for FlowCord.
+labels: ['feature: proposed']
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to suggest something! Before you write any code, **please wait for a maintainer to apply the `feature: accepted` label.** PRs opened without an approved issue will be automatically closed.
+
+        Not sure if your idea fits? Ask in Discord first.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the use case or limitation you're running into. Be specific — "it would be cool if..." isn't enough.
+      placeholder: e.g. "There's no way to prevent a user from navigating back to a specific menu after a certain action has occurred."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What would you like to see added or changed? Describe the API or behavior you have in mind.
+      placeholder: e.g. "A `disableBack()` method on MenuBuilder that marks the menu as a dead end in the navigation stack."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Have you tried working around this? Are there other ways to solve it?
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: implement
+    attributes:
+      label: Contribution intent
+      options:
+        - label: I'd like to implement this myself if it's approved

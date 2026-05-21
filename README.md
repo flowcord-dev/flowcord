@@ -936,13 +936,7 @@ For a deep dive into FlowCord's internals — the interaction loop, session life
 
 ## Contributing
 
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/my-feature`)
-3. Commit your changes (`git commit -m 'Add my feature'`)
-4. Push to the branch (`git push origin feature/my-feature`)
-5. Open a Pull Request
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for the full contribution process, including how to propose features, report bugs, and what's required before opening a PR.
 
 ---
 
