@@ -1,0 +1,86 @@
+name: PR Gate
+
+on:
+  pull_request:
+    types: [opened, reopened, edited]
+    branches: [master, develop]
+
+jobs:
+  check-linked-issue:
+    name: Require approved linked issue
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      issues: read
+    steps:
+      - name: Check for approved linked issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.pull_request.body || '';
+            const prNumber = context.payload.pull_request.number;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const APPROVED_LABELS = ['feature: accepted', 'bug: confirmed'];
+
+            // Extract issue numbers from "closes/fixes/resolves #N" patterns
+            const refs = [...body.matchAll(/(?:closes?|fixes?|resolves?)\s+#(\d+)/gi)];
+            const issueNumbers = refs.map(m => parseInt(m[1]));
+
+            const close = async (message) => {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: prNumber, body: message,
+              });
+              await github.rest.pulls.update({
+                owner, repo, pull_number: prNumber, state: 'closed',
+              });
+              core.setFailed('PR closed: ' + message.split('\n')[0]);
+            };
+
+            if (issueNumbers.length === 0) {
+              await close(
+                `👋 Thanks for the PR! It's been automatically closed because no linked issue was found.\n\n` +
+                `Every PR needs to reference an approved issue:\n` +
+                `- Bug fixes → an issue labeled \`bug: confirmed\`\n` +
+                `- Features → an issue labeled \`feature: accepted\`\n\n` +
+                `Include a line like \`Closes #123\` in your PR description, then reopen once the linked issue has the right label. ` +
+                `See [CONTRIBUTING.md](../blob/master/CONTRIBUTING.md) for the full process.`
+              );
+              return;
+            }
+
+            let approved = false;
+            let foundLabels = [];
+
+            for (const num of issueNumbers) {
+              try {
+                const { data: issue } = await github.rest.issues.get({ owner, repo, issue_number: num });
+                const labels = issue.labels.map(l => l.name);
+                foundLabels = foundLabels.concat(labels);
+                if (APPROVED_LABELS.some(l => labels.includes(l))) {
+                  approved = true;
+                  break;
+                }
+              } catch (e) {
+                // Issue not found — treat as not approved
+              }
+            }
+
+            if (!approved) {
+              await close(
+                `👋 Thanks for the PR! It's been automatically closed because the linked issue hasn't been approved yet.\n\n` +
+                `The referenced issue needs one of these labels before a PR can be opened:\n` +
+                `- \`bug: confirmed\` — for confirmed bugs\n` +
+                `- \`feature: accepted\` — for approved feature requests\n\n` +
+                `If the issue is still in discussion, please wait for a maintainer to apply the label. ` +
+                `Feel free to reopen this PR once that's done. ` +
+                `See [CONTRIBUTING.md](../blob/master/CONTRIBUTING.md) for the full process.`
+              );
+              return;
+            }
+
+            await github.rest.issues.createComment({
+              owner, repo, issue_number: prNumber,
+              body: `✅ Linked issue check passed — this PR references an approved issue.`,
+            });
