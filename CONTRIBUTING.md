@@ -87,4 +87,4 @@ If your PR was auto-closed and you think it was in error, comment on the linked 
 
 ## Questions?
 
-If you're unsure whether an idea fits, ask in [Discord](https://discord.gg/flowcord) before filing an issue. It's faster and lower friction for everyone.
+If you're unsure whether an idea fits, ask in [Discord](https://discord.gg/tcTqa5aKh9) before filing an issue. It's faster and lower friction for everyone.
