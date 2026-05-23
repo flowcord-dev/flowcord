@@ -16,7 +16,7 @@ import type { ChatInputCommandInteraction, Client } from 'discord.js';
  * Only the fields actually accessed by MenuSession (after the adapter
  * refactor) need to be real values: user.id, client.
  */
-export function buildStubInteraction(
+export function mockInteraction(
   userId: string,
   client: Client<true>,
 ): ChatInputCommandInteraction {
@@ -50,7 +50,7 @@ export function buildStubInteraction(
  * The client is placed on ctx.client; consumers can cast and access
  * only the fields they stub themselves.
  */
-export function buildStubClient(): Client<true> {
+export function mockClient(): Client<true> {
   const stub: Record<string, unknown> = {
     user: {
       id: 'test-bot-id',
@@ -68,7 +68,7 @@ export function buildStubClient(): Client<true> {
       if (typeof key === 'symbol') return undefined;
       throw new Error(
         `[FlowCord test] Stub Client accessed unknown property: "${String(key)}". ` +
-          `Add it to buildStubClient() or mock it in your test.`,
+          `Add it to mockClient() or mock it in your test.`,
       );
     },
   }) as unknown as Client<true>;

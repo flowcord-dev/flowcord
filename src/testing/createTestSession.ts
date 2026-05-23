@@ -17,7 +17,7 @@ import type { BehaviorPolicy } from '../types/behavior';
 import { MenuEngine } from '../engine/MenuEngine';
 import { SimulatedAdapter } from './SimulatedAdapter';
 import { EventLog } from '../tracing/EventLog';
-import { buildStubClient, buildStubInteraction } from './stubs';
+import { mockClient, mockInteraction } from './mocks';
 
 export interface CreateTestSessionOptions {
   /** User ID used for interaction filtering (default: 'test-user') */
@@ -61,7 +61,7 @@ export function createTestSession(
   const userId = options.userId ?? 'test-user';
   const safetyTimeout = options.safetyTimeout ?? 5000;
 
-  const client = buildStubClient();
+  const client = mockClient();
   const adapter = new SimulatedAdapter({ safetyTimeout });
   const eventLog = new EventLog();
 
@@ -76,13 +76,17 @@ export function createTestSession(
     engine.registerMenu(name, factory);
   }
 
-  const interaction = buildStubInteraction(userId, client);
+  const interaction = mockInteraction(userId, client);
 
   function startSession(
     menuName: string,
     menuOptions?: Record<string, unknown>,
   ): Promise<void> {
-    const session = engine.createSession(interaction, adapter, eventLog);
+    const session = engine.createSession(
+      interaction,
+      adapter,
+      eventLog,
+    );
 
     // Seed initial session state before the loop starts
     if (options.initialSessionState) {
