@@ -1,30 +1,28 @@
 import { MenuStack } from '../MenuStack';
 
 describe('MenuStack', () => {
-  let stack: MenuStack;
-
-  beforeEach(() => {
-    stack = new MenuStack();
-  });
-
   describe('initial state', () => {
     it('is empty', () => {
+      const stack = new MenuStack();
       expect(stack.isEmpty).toBe(true);
       expect(stack.size).toBe(0);
       expect(stack.entries).toHaveLength(0);
     });
 
     it('peek returns undefined', () => {
+      const stack = new MenuStack();
       expect(stack.peek()).toBeUndefined();
     });
 
     it('pop returns undefined', () => {
+      const stack = new MenuStack();
       expect(stack.pop()).toBeUndefined();
     });
   });
 
   describe('push / peek', () => {
     it('peek returns the last pushed entry without removing it', () => {
+      const stack = new MenuStack();
       stack.push({ menuId: 'a' });
       stack.push({ menuId: 'b' });
       expect(stack.peek()?.menuId).toBe('b');
@@ -32,6 +30,7 @@ describe('MenuStack', () => {
     });
 
     it('preserves options and snapshots on the entry', () => {
+      const stack = new MenuStack();
       const paginationSnapshot = {
         currentPage: 0,
         totalPages: 3,
@@ -47,12 +46,13 @@ describe('MenuStack', () => {
         paginationSnapshot,
       };
       stack.push(entry);
-      expect(stack.peek()).toEqual(entry);
+      expect(stack.peek()).toStrictEqual(entry);
     });
   });
 
   describe('pop', () => {
     it('returns the top entry and reduces size', () => {
+      const stack = new MenuStack();
       stack.push({ menuId: 'a' });
       stack.push({ menuId: 'b' });
       const top = stack.pop();
@@ -61,6 +61,7 @@ describe('MenuStack', () => {
     });
 
     it('returns undefined when empty after pops', () => {
+      const stack = new MenuStack();
       stack.push({ menuId: 'a' });
       stack.pop();
       expect(stack.pop()).toBeUndefined();
@@ -69,6 +70,7 @@ describe('MenuStack', () => {
 
   describe('isEmpty / size', () => {
     it('reflects push and pop correctly', () => {
+      const stack = new MenuStack();
       expect(stack.isEmpty).toBe(true);
       stack.push({ menuId: 'x' });
       expect(stack.isEmpty).toBe(false);
@@ -80,31 +82,30 @@ describe('MenuStack', () => {
 
   describe('entries', () => {
     it('returns entries oldest-first', () => {
+      const stack = new MenuStack();
       stack.push({ menuId: 'first' });
       stack.push({ menuId: 'second' });
       stack.push({ menuId: 'third' });
-      expect(stack.entries.map((e) => e.menuId)).toEqual([
+      expect(stack.entries.map((e) => e.menuId)).toStrictEqual([
         'first',
         'second',
         'third',
       ]);
     });
 
-    it('is read-only (does not expose internal array)', () => {
+    it('does not expose internal array (snapshot does not grow after push)', () => {
+      const stack = new MenuStack();
       stack.push({ menuId: 'a' });
-      // The returned array should be a snapshot, not the live internal array.
-      // Mutating it should not affect the stack.
-      const entries = stack.entries as MenuStack['entries'];
-      expect(entries).toHaveLength(1);
+      const snapshot = stack.entries;
       stack.push({ menuId: 'b' });
-      // size increased but the reference still reports the correct live state
-      // because entries is a getter returning the live readonly view.
-      expect(stack.size).toBe(2);
+      expect(snapshot).toHaveLength(1);
+      expect(stack.entries).toHaveLength(2);
     });
   });
 
   describe('clear', () => {
     it('removes all entries', () => {
+      const stack = new MenuStack();
       stack.push({ menuId: 'a' });
       stack.push({ menuId: 'b' });
       stack.clear();

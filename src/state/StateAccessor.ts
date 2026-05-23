@@ -15,9 +15,9 @@ export class StateAccessor<
     this._data = { ...initialState };
   }
 
-  /** Get the full state object. */
+  /** Get a shallow copy of the full state object. */
   get current(): Readonly<TState> {
-    return this._data;
+    return { ...this._data };
   }
 
   /** Get a single property. */
