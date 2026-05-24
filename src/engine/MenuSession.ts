@@ -300,6 +300,7 @@ export class MenuSession implements MenuSessionLike {
         sessionId: this.id,
         userId: this._commandInteraction.user.id,
         timestamp: Date.now(),
+        direction: 'forward',
       });
     }
 
@@ -372,6 +373,18 @@ export class MenuSession implements MenuSessionLike {
       );
     }
 
+    // Trace back navigation
+    if (this._engine.tracer && this._currentMenu) {
+      this._engine.tracer.record({
+        from: this._currentMenu.name,
+        to: entry.menuId,
+        sessionId: this.id,
+        userId: this._commandInteraction.user.id,
+        timestamp: Date.now(),
+        direction: 'back',
+      });
+    }
+
     this._currentOptions = entry.options;
     const definition = await factory(this, entry.options);
     const instance = new MenuInstance(definition, this.id);
@@ -433,6 +446,18 @@ export class MenuSession implements MenuSessionLike {
         ctx,
         this._currentMenu.definition.hooks,
       );
+    }
+
+    // Trace fallback back navigation
+    if (this._engine.tracer && this._currentMenu) {
+      this._engine.tracer.record({
+        from: this._currentMenu.name,
+        to: fallbackMenu,
+        sessionId: this.id,
+        userId: this._commandInteraction.user.id,
+        timestamp: Date.now(),
+        direction: 'back',
+      });
     }
 
     this._currentOptions = fallbackMenuOptions;

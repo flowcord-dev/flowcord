@@ -47,7 +47,7 @@ export class EventLog {
   private readonly _events: SessionEvent[] = [];
 
   get events(): readonly SessionEvent[] {
-    return this._events;
+    return [...this._events];
   }
 
   record(event: SessionEvent): void {

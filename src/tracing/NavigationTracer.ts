@@ -13,6 +13,8 @@ export interface NavigationEvent {
   sessionId: string;
   userId: string;
   timestamp: number;
+  /** Whether this was a forward navigation or a back navigation. */
+  direction: 'forward' | 'back';
   /** Which component triggered the navigation (e.g., 'button:add-prefix') */
   trigger?: string;
 }
@@ -37,9 +39,9 @@ export class NavigationTracer {
     this._events.push(event);
   }
 
-  /** Get all recorded events. */
+  /** Get a snapshot of all recorded events. */
   get events(): ReadonlyArray<NavigationEvent> {
-    return this._events;
+    return [...this._events];
   }
 
   /** Clear recorded events. */
@@ -47,26 +49,45 @@ export class NavigationTracer {
     this._events.length = 0;
   }
 
-  /** Get all paths originating from a given menu. */
+  /**
+   * Get all structurally implied forward navigation paths from a given menu.
+   *
+   * Forward events contribute a `from → to` edge. Back events are inverted
+   * and contribute a `to → from` edge, representing the implied forward path
+   * (e.g. a fallback back navigation implies the parent can reach the child).
+   * Edges are deduplicated so forward+back pairs between the same menus
+   * produce a single edge rather than a cycle.
+   */
   getPathsFrom(menuId: string): string[][] {
+    // Build a deduplicated adjacency map.
+    // Forward events: from → to. Back events (inverted): to → from.
+    const adjacency = new Map<string, Set<string>>();
+    for (const event of this._events) {
+      const [src, dst] =
+        event.direction === 'back'
+          ? [event.to, event.from]
+          : [event.from, event.to];
+      if (!adjacency.has(src)) adjacency.set(src, new Set());
+      adjacency.get(src)!.add(dst);
+    }
+
     const paths: string[][] = [];
     const visited = new Set<string>();
 
+    // Depth-First Search (DFS) over implied forward edges to collect terminal paths.
     const dfs = (current: string, path: string[]): void => {
       if (visited.has(current)) return;
       visited.add(current);
 
-      const next = this._events
-        .filter((e) => e.from === current)
-        .map((e) => e.to);
+      const next = adjacency.get(current);
 
-      if (next.length === 0) {
+      if (!next || next.size === 0) {
         paths.push([...path]);
         visited.delete(current);
         return;
       }
 
-      for (const n of new Set(next)) {
+      for (const n of next) {
         dfs(n, [...path, n]);
       }
       visited.delete(current);
