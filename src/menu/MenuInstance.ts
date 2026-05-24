@@ -230,8 +230,8 @@ export class MenuInstance<
   }
 
   /**
-   * Called by the openModal action to mark a modal as ready to show.
-   * The session checks this flag before the render/interaction cycle.
+   * Mark a modal as active so the session can await its submission
+   * in the next loop iteration. Called by the session after showModal().
    */
   async openModal(modalId?: string): Promise<void> {
     const key = modalId ?? '__default';

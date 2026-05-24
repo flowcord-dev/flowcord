@@ -695,7 +695,7 @@ export class MenuSession implements MenuSessionLike {
       this._didNavigate = false;
       this._didHardRefresh = false;
 
-      // --- Pending modal (action triggered openModal in previous iteration) ---
+      // --- Pending modal (opensModal button showed modal in previous iteration) ---
       const modalDirective = await this._handlePendingModal(timeout);
       if (modalDirective === 'break') break;
       if (modalDirective === 'continue') continue;
@@ -1155,7 +1155,6 @@ export class MenuSession implements MenuSessionLike {
     }
 
     await this.executeAction(action, ctx);
-    await this._showLegacyModal(interaction, componentId);
   }
 
   /**
@@ -1276,53 +1275,6 @@ export class MenuSession implements MenuSessionLike {
           modalId ?? 'unknown'
         }"). Ensure setModal() registers a modal with the correct ID.`,
     );
-  }
-
-  /**
-   * Legacy openModal() action support: if an action called openModal() and
-   * set isModalActive, show the modal on the raw interaction.
-   * Throws when the interaction was already deferred (developer error — they
-   * should use opensModal on the button config instead).
-   */
-  private async _showLegacyModal(
-    interaction: MessageComponentInteraction,
-    componentId: string,
-  ): Promise<void> {
-    if (
-      !this._currentMenu?.isModalActive ||
-      !this._currentMenu.activeModal
-    ) {
-      return;
-    }
-
-    if (!interaction.deferred && !interaction.replied) {
-      const normalizedTrigger: NormalizedComponentInteraction = {
-        customId: interaction.customId,
-        type: 'button',
-        userId: interaction.user.id,
-        deferUpdate: async () => {
-          if (!interaction.deferred && !interaction.replied) {
-            await interaction.deferUpdate();
-          }
-        },
-        raw: interaction,
-      };
-      await this._adapter.showModal(
-        this._currentMenu.activeModal.builder.toJSON(),
-        normalizedTrigger,
-      );
-      this._emitEvent({
-        kind: 'modal:shown',
-        menuId: this._currentMenu.name,
-        timestamp: Date.now(),
-      });
-    } else {
-      this._currentMenu.isModalActive = false;
-      throw new Error(
-        `[FlowCord] Button "${componentId}" used openModal() action after the interaction was deferred. ` +
-          `Use opensModal on the button configuration so the framework can call showModal() on a raw interaction.`,
-      );
-    }
   }
 
   /**

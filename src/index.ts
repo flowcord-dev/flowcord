@@ -34,7 +34,7 @@ export type {
 } from './context';
 
 // Actions
-export { goTo, goBack, closeMenu, openModal } from './action';
+export { goTo, goBack, closeMenu } from './action';
 export { pipeline, guard, GuardFailedError } from './action';
 export type { Action, TaggedAction, GuardFn } from './action';
 
