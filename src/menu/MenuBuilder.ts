@@ -1,28 +1,6 @@
-/**
- * MenuBuilder — fluent builder for FlowCord menu definitions.
- *
- * Primary API for defining menus. Supports:
- * - All v1 methods (setEmbeds, setButtons, setSelectMenu, setModal, setMessageHandler)
- * - Lifecycle hooks (onEnter, onLeave, onCancel, beforeRender, afterRender, etc.)
- * - Display components via setLayout()
- * - Compile-time mode branching (embeds vs layout cannot be mixed)
- * - Context extension for builder subclasses
- * - List and button pagination
- * - fromDefinition() for hybrid object-literal configuration
- *
- * ## Mode Branching
- *
- * The builder uses a generic `TMode` parameter to enforce at the type level
- * that embed-mode methods (.setEmbeds, .setButtons, .setSelectMenu) cannot
- * be mixed with layout-mode methods (.setLayout).
- *
- * @template TState  - Typed menu-local state
- * @template TCtx    - The context type (extended by builder subclasses)
- * @template TMode   - 'unset' | 'embeds' | 'layout' tracks which mode methods have been called
- */
 import type { EmbedBuilder } from 'discord.js';
-import type { MenuContext } from '../context/MenuContext';
 import type {
+  MenuContext,
   MenuSessionLike,
   ContextExtension,
 } from '../context/MenuContext';
@@ -49,6 +27,28 @@ import type {
 // Builder class
 // ---------------------------------------------------------------------------
 
+/**
+ * MenuBuilder — fluent builder for FlowCord menu definitions.
+ *
+ * Primary API for defining menus. Supports:
+ * - All v1 methods (setEmbeds, setButtons, setSelectMenu, setModal, setMessageHandler)
+ * - Lifecycle hooks (onEnter, onLeave, onCancel, beforeRender, afterRender, etc.)
+ * - Display components via setLayout()
+ * - Compile-time mode branching (embeds vs layout cannot be mixed)
+ * - Context extension for builder subclasses
+ * - List and button pagination
+ * - fromDefinition() for hybrid object-literal configuration
+ *
+ * ## Mode Branching
+ *
+ * The builder uses a generic `TMode` parameter to enforce at the type level
+ * that embed-mode methods (.setEmbeds, .setButtons, .setSelectMenu) cannot
+ * be mixed with layout-mode methods (.setLayout).
+ *
+ * @template TState  - Typed menu-local state
+ * @template TCtx    - The context type (extended by builder subclasses)
+ * @template TMode   - 'unset' | 'embeds' | 'layout' tracks which mode methods have been called
+ */
 export class MenuBuilder<
   TState extends Record<string, unknown> = Record<string, unknown>,
   TSessionState extends Record<string, unknown> = Record<
@@ -109,9 +109,6 @@ export class MenuBuilder<
     (baseCtx: MenuContext) => Record<string, unknown>
   > = [];
 
-  // Mode tracking (runtime backup for the compile-time generic)
-  protected _mode: 'unset' | 'embeds' | 'layout' = 'unset';
-
   constructor(
     sessionLike: MenuSessionLike,
     name: string,
@@ -153,7 +150,6 @@ export class MenuBuilder<
     fn: (ctx: TCtx) => Awaitable<EmbedBuilder[]>,
   ): MenuBuilder<TState, TSessionState, TCtx, 'embeds'> {
     this._setEmbeds = fn;
-    this._mode = 'embeds';
     return this as unknown as MenuBuilder<
       TState,
       TSessionState,
@@ -178,7 +174,6 @@ export class MenuBuilder<
   ): MenuBuilder<TState, TSessionState, TCtx, 'embeds'> {
     this._setButtons = normalizeButtonsFn(fn);
     this._setButtonsOptions = options;
-    this._mode = 'embeds';
     return this as unknown as MenuBuilder<
       TState,
       TSessionState,
@@ -200,7 +195,6 @@ export class MenuBuilder<
     fn: (ctx: TCtx) => Awaitable<SelectInputConfig<TCtx>>,
   ): MenuBuilder<TState, TSessionState, TCtx, 'embeds'> {
     this._setSelectMenu = normalizeSelectFn(fn);
-    this._mode = 'embeds';
     return this as unknown as MenuBuilder<
       TState,
       TSessionState,
@@ -228,7 +222,6 @@ export class MenuBuilder<
     fn: (ctx: TCtx) => Awaitable<ComponentConfig<TCtx>[]>,
   ): MenuBuilder<TState, TSessionState, TCtx, 'layout'> {
     this._setLayout = fn;
-    this._mode = 'layout';
     return this as unknown as MenuBuilder<
       TState,
       TSessionState,
@@ -389,7 +382,10 @@ export class MenuBuilder<
   setTimeoutMessage(message: string): this {
     this._behavior = {
       ...this._behavior,
-      explicit: { ...this._behavior.explicit, timeoutMessage: message },
+      explicit: {
+        ...this._behavior.explicit,
+        timeoutMessage: message,
+      },
     };
     return this;
   }
@@ -465,42 +461,42 @@ export class MenuBuilder<
   // -----------------------------------------------------------------------
 
   onEnter(fn: HookFn<TCtx>): this {
-    this._hooks.onEnter = fn as HookFn;
+    this._hooks.onEnter = fn;
     return this;
   }
 
   onLeave(fn: HookFn<TCtx>): this {
-    this._hooks.onLeave = fn as HookFn;
+    this._hooks.onLeave = fn;
     return this;
   }
 
   onCancel(fn: HookFn<TCtx>): this {
-    this._hooks.onCancel = fn as HookFn;
+    this._hooks.onCancel = fn;
     return this;
   }
 
   beforeRender(fn: HookFn<TCtx>): this {
-    this._hooks.beforeRender = fn as HookFn;
+    this._hooks.beforeRender = fn;
     return this;
   }
 
   afterRender(fn: HookFn<TCtx>): this {
-    this._hooks.afterRender = fn as HookFn;
+    this._hooks.afterRender = fn;
     return this;
   }
 
   onNext(fn: HookFn<TCtx>): this {
-    this._hooks.onNext = fn as HookFn;
+    this._hooks.onNext = fn;
     return this;
   }
 
   onPrevious(fn: HookFn<TCtx>): this {
-    this._hooks.onPrevious = fn as HookFn;
+    this._hooks.onPrevious = fn;
     return this;
   }
 
   onAction(fn: HookFn<TCtx>): this {
-    this._hooks.onAction = fn as HookFn;
+    this._hooks.onAction = fn;
     return this;
   }
 
@@ -515,10 +511,18 @@ export class MenuBuilder<
   extendContext<TExtra extends Record<string, unknown>>(
     fn: ContextExtension<TExtra>,
   ): this {
-    this._contextExtensions.push(
-      fn as (baseCtx: MenuContext) => Record<string, unknown>,
-    );
+    this._contextExtensions.push(fn);
     return this;
+  }
+
+  private setHooksFromDefinition(
+    defHooks: Partial<MenuHooks<TCtx>>,
+  ): void {
+    for (const [name, fn] of Object.entries(defHooks)) {
+      if (fn) {
+        (this._hooks as Record<string, unknown>)[name] = fn;
+      }
+    }
   }
 
   // -----------------------------------------------------------------------
@@ -542,16 +546,7 @@ export class MenuBuilder<
     if (def.options?.cancellable) this._isCancellable = true;
     if (def.options?.returnable) this._isReturnable = true;
     if (def.options?.trackInHistory) this._isTrackedInHistory = true;
-    if (def.hooks) {
-      for (const [name, fn] of Object.entries(def.hooks)) {
-        if (fn) {
-          (this._hooks as Record<string, unknown>)[name] = fn;
-        }
-      }
-    }
-    // Resolve mode
-    if (def.layout) this._mode = 'layout';
-    else if (def.embeds || def.buttons) this._mode = 'embeds';
+    if (def.hooks) this.setHooksFromDefinition(def.hooks);
     return this;
   }
 

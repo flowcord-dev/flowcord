@@ -172,7 +172,7 @@ describe('validateLayout', () => {
   it('counts all component types in a mixed layout tree', () => {
     const result = validateLayout(mockVariedComponents(), 'menu');
 
-    expect(result.componentCount).toBe(18);
+    expect(result.componentCount).toBe(17);
     expect(result.breakdown).toMatchObject({
       containers: 1,
       textDisplays: 2, // container children
@@ -188,16 +188,39 @@ describe('validateLayout', () => {
     });
   });
 
+  it('counts paginated_group buttons using button count when perPage is not set', () => {
+    // paginated_group with 3 buttons and no options — should use all 3 buttons as max
+    // 3 buttons → 1 row (ceil(3/5)) + 3 buttons = 4 components (marker is not a real component)
+    const result = validateLayout(
+      [
+        {
+          type: 'paginated_group',
+          buttons: Array.from({ length: 3 }, (_, idx) => ({
+            type: 'button' as const,
+            label: `B${idx}`,
+            style: 1,
+          })),
+        },
+      ],
+      'menu',
+    );
+
+    expect(result.componentCount).toBe(4); // row(1) + 3 buttons
+    expect(result.breakdown.buttons).toBe(3);
+    expect(result.breakdown.actionRows).toBe(1);
+    expect(result.breakdown.other).toBe(1); // the paginated_group marker
+  });
+
   it('error breakdown mentions all component type names', () => {
-    // Append 23 text components to the base (18) to exceed the 40-component limit
+    // Append 24 text components to the base (17) to exceed the 40-component limit
     const components = mockVariedComponents(
-      Array.from({ length: 23 }, () => mockTextComponent()),
+      Array.from({ length: 24 }, () => mockTextComponent()),
     );
 
     const result = validateLayout(components, 'menu');
 
     expect(result.errors[0]).toBe(
-      'Layout for menu "menu" has 41 components (limit: 40). Reduce content or split into multiple menus.\nBreakdown: 1 containers, 25 text displays, 1 sections, 1 separators, 2 action rows, 5 buttons, 1 selects, 1 thumbnails, 1 media galleries, 1 files, 2 other.',
+      'Layout for menu "menu" has 41 components (limit: 40). Reduce content or split into multiple menus.\nBreakdown: 1 containers, 26 text displays, 1 sections, 1 separators, 2 action rows, 5 buttons, 1 selects, 1 thumbnails, 1 media galleries, 1 files, 2 other.',
     );
   });
 });
@@ -255,7 +278,7 @@ const mockVariedComponents = (
   { type: 'button', label: 'Standalone', style: ButtonStyle.Success },
   // standalone select: 1 (builder not accessed by countComponent)
   { type: 'select', builder: new StringSelectMenuBuilder() },
-  // paginated_group: self(1) + 1 row + 2 buttons (perPage:2) = 4
+  // paginated_group: 1 row + 2 buttons (perPage:2) = 3 (marker is not a real component)
   {
     type: 'paginated_group',
     buttons: Array.from({ length: 3 }, (_, i) => ({

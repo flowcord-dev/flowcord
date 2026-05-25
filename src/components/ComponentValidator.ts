@@ -191,8 +191,9 @@ function countComponent(
       break;
 
     case 'paginated_group': {
-      // Count the current page's worth of buttons (worst case: perPage or all)
-      // At validation time, we count all buttons as the max possible
+      // The marker is a framework abstraction replaced by real rows + buttons at
+      // render time — it does not become a Discord component itself.
+      acc.componentCount = 0;
       acc.breakdown.other++;
       const maxPerPage =
         config.options?.perPage ?? config.buttons.length;

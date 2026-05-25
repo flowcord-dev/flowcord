@@ -7,6 +7,7 @@ export {
   mockClient,
   mockInteraction,
   mockMenuContext,
+  mockMenuSessionLike,
 } from './mocks';
 export {
   SimulatedAdapter,
