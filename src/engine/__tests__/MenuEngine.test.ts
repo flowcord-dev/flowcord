@@ -1,0 +1,169 @@
+/**
+ * Unit tests for MenuEngine.
+ *
+ * Tests configuration, registry delegation, session tracking utilities,
+ * and the handleInteraction error path. Full session lifecycle tests live
+ * in src/testing/__tests__/session.test.ts.
+ */
+import { MenuEngine } from '../MenuEngine';
+import { mockClient, mockInteraction } from '../../testing/mocks';
+
+// ---------------------------------------------------------------------------
+// Configuration
+// ---------------------------------------------------------------------------
+
+describe('configuration', () => {
+  it('timeout defaults to 120 000 ms', () => {
+    const engine = new MenuEngine({ client: mockClient() });
+    expect(engine.timeout).toBe(120_000);
+  });
+
+  it('timeout returns the configured value', () => {
+    const engine = new MenuEngine({ client: mockClient(), timeout: 30_000 });
+    expect(engine.timeout).toBe(30_000);
+  });
+
+  it('globalBehavior is undefined when not configured', () => {
+    const engine = new MenuEngine({ client: mockClient() });
+    expect(engine.globalBehavior).toBeUndefined();
+  });
+
+  it('globalBehavior returns the configured policy', () => {
+    const policy = { default: { ephemeral: true } };
+    const engine = new MenuEngine({ client: mockClient(), behavior: policy });
+    expect(engine.globalBehavior).toStrictEqual(policy);
+  });
+
+  it('enableTracing: true — tracer records emitted events', () => {
+    const engine = new MenuEngine({ client: mockClient(), enableTracing: true });
+    engine.tracer.record({
+      from: 'menu-a',
+      to: 'menu-b',
+      sessionId: 'sess-1',
+      userId: 'usr-1',
+      timestamp: 0,
+      direction: 'forward',
+    });
+    expect(engine.tracer.events).toHaveLength(1);
+  });
+
+  it('tracer is disabled by default — events are not stored', () => {
+    const engine = new MenuEngine({ client: mockClient() });
+    engine.tracer.record({
+      from: 'menu-a',
+      to: 'menu-b',
+      sessionId: 'sess-1',
+      userId: 'usr-1',
+      timestamp: 0,
+      direction: 'forward',
+    });
+    expect(engine.tracer.events).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Registry
+// ---------------------------------------------------------------------------
+
+describe('registerMenu', () => {
+  it('makes the factory retrievable from menuRegistry', () => {
+    const engine = new MenuEngine({ client: mockClient() });
+    const factory = jest.fn();
+    engine.registerMenu('nav-menu', factory);
+
+    expect(engine.menuRegistry.has('nav-menu')).toBe(true);
+    expect(engine.menuRegistry.getFactory('nav-menu')).toBe(factory);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Session tracking
+// ---------------------------------------------------------------------------
+
+describe('activeSessionCount', () => {
+  it('starts at zero', () => {
+    const engine = new MenuEngine({ client: mockClient() });
+    expect(engine.activeSessionCount).toBe(0);
+  });
+});
+
+describe('getSession', () => {
+  it('returns undefined for an unknown session ID', () => {
+    const engine = new MenuEngine({ client: mockClient() });
+    expect(engine.getSession('ghost-sess')).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// routeComponentInteraction
+// ---------------------------------------------------------------------------
+
+describe('routeComponentInteraction', () => {
+  it('returns false when the customId has no FlowCord session prefix', () => {
+    const engine = new MenuEngine({ client: mockClient() });
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    const result = engine.routeComponentInteraction({ customId: 'plain-btn' } as any);
+    expect(result).toBe(false);
+  });
+
+  it('returns false when the parsed sessionId does not match any active session', () => {
+    const engine = new MenuEngine({ client: mockClient() });
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    const result = engine.routeComponentInteraction({ customId: 'ghost-sess:main:btn' } as any);
+    expect(result).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// isFlowCordInteraction
+// ---------------------------------------------------------------------------
+
+describe('isFlowCordInteraction', () => {
+  it('returns false when the customId has no colon separators', () => {
+    const engine = new MenuEngine({ client: mockClient() });
+    expect(engine.isFlowCordInteraction('plain-btn')).toBe(false);
+  });
+
+  it('returns false when the parsed sessionId is not active', () => {
+    const engine = new MenuEngine({ client: mockClient() });
+    expect(engine.isFlowCordInteraction('ghost-sess:main:btn')).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// handleInteraction — error path
+// ---------------------------------------------------------------------------
+
+describe('handleInteraction — error path', () => {
+  it('calls the configured onError handler when initialization throws', async () => {
+    const client = mockClient();
+    const onError = jest.fn().mockResolvedValue(undefined);
+    const engine = new MenuEngine({ client, onError });
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    await engine.handleInteraction(
+      mockInteraction('usr-1', client),
+      'not-registered',
+    );
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    consoleError.mockRestore();
+  });
+
+  it('removes the failed session from the active pool', async () => {
+    const client = mockClient();
+    const engine = new MenuEngine({
+      client,
+      onError: jest.fn().mockResolvedValue(undefined),
+    });
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    await engine.handleInteraction(
+      mockInteraction('usr-1', client),
+      'not-registered',
+    );
+
+    expect(engine.activeSessionCount).toBe(0);
+    consoleError.mockRestore();
+  });
+});
