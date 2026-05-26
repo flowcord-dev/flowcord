@@ -1,10 +1,3 @@
-/**
- * Integration tests — session lifecycle.
- *
- * Tests navigate, goBack, close, cancel, guard failure using
- * createTestSession + SimulatedAdapter. All tests run fully in-process
- * with no Discord.js connection.
- */
 import { ButtonStyle } from 'discord.js';
 import { MenuBuilder } from '../../menu/MenuBuilder';
 import { goTo, goBack, closeMenu, guard, pipeline } from '../../action';

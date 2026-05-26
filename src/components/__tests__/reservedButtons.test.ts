@@ -1,6 +1,3 @@
-/**
- * Unit tests for reservedButtons — button row generation, injection, and counts.
- */
 import { ButtonStyle } from 'discord.js';
 import {
   buildReservedButtonRow,

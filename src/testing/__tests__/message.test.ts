@@ -1,9 +1,3 @@
-/**
- * Integration tests — message-collection and mixed interaction menus.
- *
- * Covers setMessageHandler() (pure message menus) and mixed menus that
- * race a button click against a text message reply.
- */
 import { ButtonStyle } from 'discord.js';
 import { MenuBuilder } from '../../menu/MenuBuilder';
 import { closeMenu } from '../../action';

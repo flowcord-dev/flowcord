@@ -58,8 +58,7 @@ describe('guard()', () => {
     await expect(g(ctx)).rejects.toThrow('custom override');
   });
 
-  it('throws with default message when predicate returns empty string (falsy)', async () => {
-    // empty string is falsy — treated as pass
+  it('resolves when predicate returns empty string (falsy — treated as pass)', async () => {
     const g = guard(async () => '', 'fallback');
     await expect(g(ctx)).resolves.toBeUndefined();
   });

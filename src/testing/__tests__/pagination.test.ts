@@ -1,9 +1,3 @@
-/**
- * Integration tests — list pagination.
- *
- * Tests setListPagination(), ctx.pagination state, and reserved
- * next/previous button navigation.
- */
 import { ButtonStyle, EmbedBuilder } from 'discord.js';
 import { MenuBuilder } from '../../menu/MenuBuilder';
 import { closeMenu } from '../../action';

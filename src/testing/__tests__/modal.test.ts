@@ -1,10 +1,3 @@
-/**
- * Integration tests — modal flow.
- *
- * Tests declarative opensModal button → modal shown → submit → onSubmit callback.
- * Uses SimulatedAdapter's enqueueModalSubmit() as the mechanism for providing
- * modal field values.
- */
 import { ButtonStyle, ModalBuilder, ActionRowBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
 import { MenuBuilder } from '../../menu/MenuBuilder';
 import { closeMenu } from '../../action';

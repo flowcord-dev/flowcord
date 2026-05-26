@@ -1,9 +1,3 @@
-/**
- * Integration tests — layout mode menus (Discord Components v2).
- *
- * Tests setLayout() rendering, button interactions inside layout action rows,
- * navigation between layout menus, and the cancel reserved button.
- */
 import { ButtonStyle } from 'discord.js';
 import { MenuBuilder } from '../../menu/MenuBuilder';
 import { goTo, goBack, closeMenu } from '../../action';

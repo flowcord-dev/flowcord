@@ -1,9 +1,3 @@
-/**
- * Integration tests — select menu interactions.
- *
- * Tests setSelectMenu() builder API, onSelect callback dispatch, and
- * re-render behaviour after a selection.
- */
 import {
   ButtonStyle,
   StringSelectMenuBuilder,

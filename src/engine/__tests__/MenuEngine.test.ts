@@ -1,10 +1,3 @@
-/**
- * Unit tests for MenuEngine.
- *
- * Tests configuration, registry delegation, session tracking utilities,
- * and the handleInteraction error path. Full session lifecycle tests live
- * in src/testing/__tests__/session.test.ts.
- */
 import { MenuEngine } from '../MenuEngine';
 import { mockClient, mockInteraction } from '../../testing/mocks';
 

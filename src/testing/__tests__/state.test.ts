@@ -1,9 +1,3 @@
-/**
- * Integration tests — menu-local state and session state.
- *
- * Tests state persistence, setPreserveStateOnReturn(), and session state
- * sharing across menus.
- */
 import { ButtonStyle } from 'discord.js';
 import { MenuBuilder } from '../../menu/MenuBuilder';
 import { goTo, goBack, closeMenu } from '../../action';

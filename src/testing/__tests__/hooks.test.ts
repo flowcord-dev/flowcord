@@ -1,9 +1,3 @@
-/**
- * Integration tests — hook lifecycle ordering.
- *
- * Verifies that onEnter, onLeave, beforeRender, afterRender fire in the
- * correct order for both initial render and menu navigation transitions.
- */
 import { ButtonStyle } from 'discord.js';
 import { MenuBuilder } from '../../menu/MenuBuilder';
 import { goTo, goBack, closeMenu } from '../../action';
