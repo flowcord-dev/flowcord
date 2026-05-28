@@ -5,7 +5,7 @@ import type {
 } from '../../context/MenuContext';
 import { StateAccessor } from '../../state/StateAccessor';
 import { StateStore } from '../../state/StateStore';
-import { mockClient, mockInteraction } from './discordjs';
+import { mockClient, mockCommandInteraction } from './discordjs';
 
 interface MockMenuContextOverrides<
   TState extends Record<string, unknown> = Record<string, unknown>,
@@ -68,7 +68,15 @@ export function mockMenuContext<
     sessionState,
     client,
     interaction:
-      overrides.interaction ?? mockInteraction('test-user', client),
+      overrides.interaction ??
+      mockCommandInteraction({
+        client,
+        user: {
+          id: 'test-user',
+          displayName: 'TestUser',
+          displayAvatarURL: () => '',
+        },
+      }),
     options: overrides.options ?? ({} as TOptions),
     pagination: overrides.pagination ?? null,
     env: overrides.env ?? 'test',

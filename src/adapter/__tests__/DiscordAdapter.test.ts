@@ -1,82 +1,25 @@
 import { MessageFlags } from 'discord.js';
-import type {
-  ChatInputCommandInteraction,
-  Message,
-  MessageComponentInteraction,
-  ModalSubmitInteraction,
-} from 'discord.js';
+
+import {
+  mockCommandInteraction,
+  mockComponentInteraction,
+  mockMessage,
+  mockModalSubmitInteraction,
+} from '../../testing';
 import { DiscordAdapter } from '../DiscordAdapter';
-import type { NormalizedRenderPayload, NormalizedTerminalPayload } from '../types';
+import type {
+  NormalizedRenderPayload,
+  NormalizedTerminalPayload,
+} from '../types';
 
 // ---------------------------------------------------------------------------
 // Mock factory helpers
 // ---------------------------------------------------------------------------
 
-function mockMessage(overrides: Partial<Record<string, unknown>> = {}): Message {
-  const edit = jest.fn();
-  const del = jest.fn();
-  const awaitMC = jest.fn();
-  const msg = {
-    id: 'msg-1',
-    channelId: 'ch-1',
-    content: '',
-    author: { id: 'user-1' },
-    edit,
-    delete: del,
-    awaitMessageComponent: awaitMC,
-    ...overrides,
-  } as unknown as Message;
-  edit.mockResolvedValue(msg);
-  del.mockResolvedValue(msg);
-  awaitMC.mockReturnValue(new Promise(() => {}));
-  return msg;
-}
-
-function mockCommandInteraction(overrides: Partial<Record<string, unknown>> = {}): ChatInputCommandInteraction {
-  const msg = mockMessage();
-  return {
-    user: { id: 'user-1' },
-    applicationId: 'app-1',
-    token: 'tok-1',
-    channel: null,
-    client: { rest: { patch: jest.fn().mockResolvedValue({}) } },
-    deferReply: jest.fn().mockResolvedValue(undefined),
-    editReply: jest.fn().mockResolvedValue(msg),
-    followUp: jest.fn().mockResolvedValue(msg),
-    ...overrides,
-  } as unknown as ChatInputCommandInteraction;
-}
-
-function mockComponentInteraction(overrides: Partial<Record<string, unknown>> = {}): MessageComponentInteraction {
-  return {
-    customId: 'btn-1',
-    user: { id: 'user-1' },
-    deferred: false,
-    replied: false,
-    deferUpdate: jest.fn().mockResolvedValue(undefined),
-    update: jest.fn().mockResolvedValue(undefined),
-    showModal: jest.fn().mockResolvedValue(undefined),
-    awaitModalSubmit: jest.fn().mockReturnValue(new Promise(() => {})),
-    isAnySelectMenu: jest.fn().mockReturnValue(false),
-    isButton: jest.fn().mockReturnValue(true),
-    ...overrides,
-  } as unknown as MessageComponentInteraction;
-}
-
-function mockModalSubmitInteraction(overrides: Partial<Record<string, unknown>> = {}): ModalSubmitInteraction {
-  return {
-    customId: 'my-modal',
-    user: { id: 'user-1' },
-    fields: {
-      getTextInputValue: jest.fn().mockReturnValue(''),
-    },
-    deferUpdate: jest.fn().mockResolvedValue(undefined),
-    ...overrides,
-  } as unknown as ModalSubmitInteraction;
-}
-
 /** Minimal embeds-mode render payload */
-function embedsPayload(overrides: Partial<NormalizedRenderPayload> = {}): NormalizedRenderPayload {
+function embedsPayload(
+  overrides: Partial<NormalizedRenderPayload> = {},
+): NormalizedRenderPayload {
   return {
     mode: 'embeds',
     embeds: [{ title: 'Test', description: 'hello' }],
@@ -94,7 +37,9 @@ function embedsPayload(overrides: Partial<NormalizedRenderPayload> = {}): Normal
 }
 
 /** Minimal layout-mode render payload */
-function layoutPayload(overrides: Partial<NormalizedRenderPayload> = {}): NormalizedRenderPayload {
+function layoutPayload(
+  overrides: Partial<NormalizedRenderPayload> = {},
+): NormalizedRenderPayload {
   return {
     mode: 'layout',
     layoutComponents: [{ type: 17, id: 1, components: [] }] as never,
@@ -225,7 +170,16 @@ describe('sendPayload — postAndDelete cleanup', () => {
     await adapter.sendPayload(embedsPayload());
 
     await adapter.sendPayload(
-      embedsPayload({ behavior: { messageCleanup: 'postAndDelete', ephemeral: false, ephemeralFallbackDisposal: 'strip', closedMessage: 'closed', deleteUserMessages: false, timeoutMessage: '*This interaction has timed out.*' } }),
+      embedsPayload({
+        behavior: {
+          messageCleanup: 'postAndDelete',
+          ephemeral: false,
+          ephemeralFallbackDisposal: 'strip',
+          closedMessage: 'closed',
+          deleteUserMessages: false,
+          timeoutMessage: '*This interaction has timed out.*',
+        },
+      }),
     );
 
     expect(msg.delete).toHaveBeenCalled();
@@ -247,7 +201,16 @@ describe('sendPayload — postAndStrip cleanup', () => {
     await adapter.sendPayload(embedsPayload());
 
     await adapter.sendPayload(
-      embedsPayload({ behavior: { messageCleanup: 'postAndStrip', ephemeral: false, ephemeralFallbackDisposal: 'strip', closedMessage: 'closed', deleteUserMessages: false, timeoutMessage: '*This interaction has timed out.*' } }),
+      embedsPayload({
+        behavior: {
+          messageCleanup: 'postAndStrip',
+          ephemeral: false,
+          ephemeralFallbackDisposal: 'strip',
+          closedMessage: 'closed',
+          deleteUserMessages: false,
+          timeoutMessage: '*This interaction has timed out.*',
+        },
+      }),
     );
 
     expect(msg.edit).toHaveBeenCalledWith(
@@ -273,7 +236,10 @@ describe('awaitComponent', () => {
     const fakeCI = mockComponentInteraction();
     awaitMC.mockResolvedValueOnce(fakeCI);
 
-    const result = await adapter.awaitComponent({ timeout: 60000, userId: 'user-1' });
+    const result = await adapter.awaitComponent({
+      timeout: 60000,
+      userId: 'user-1',
+    });
 
     expect(awaitMC).toHaveBeenCalledWith(
       expect.objectContaining({ time: 60000 }),
@@ -286,9 +252,9 @@ describe('awaitComponent', () => {
     const interaction = mockCommandInteraction();
     const adapter = new DiscordAdapter(interaction);
 
-    await expect(adapter.awaitComponent({ timeout: 5000, userId: 'user-1' })).rejects.toThrow(
-      'No active message',
-    );
+    await expect(
+      adapter.awaitComponent({ timeout: 5000, userId: 'user-1' }),
+    ).rejects.toThrow('No active message');
   });
 });
 
@@ -306,14 +272,25 @@ describe('showModal and awaitModal', () => {
     await adapter.sendPayload(embedsPayload());
 
     const getTextInputValue = jest.fn().mockReturnValue('typed text');
-    const awaitModalSubmit = jest.fn().mockReturnValue(new Promise(() => {}));
+    const awaitModalSubmit = jest
+      .fn()
+      .mockReturnValue(new Promise(() => {}));
     const ci = mockComponentInteraction({ awaitModalSubmit });
-    const submit = mockModalSubmitInteraction({ fields: { getTextInputValue } });
+    const submit = mockModalSubmitInteraction({
+      fields: { getTextInputValue },
+    });
     awaitModalSubmit.mockResolvedValueOnce(submit);
     awaitMC.mockResolvedValueOnce(ci);
-    await adapter.awaitComponent({ timeout: 60000, userId: 'user-1' });
+    await adapter.awaitComponent({
+      timeout: 60000,
+      userId: 'user-1',
+    });
 
-    const modalData = { custom_id: 'my-modal', title: 'Test', components: [] };
+    const modalData = {
+      custom_id: 'my-modal',
+      title: 'Test',
+      components: [],
+    };
 
     await adapter.showModal(modalData, {
       customId: 'btn-1',
@@ -323,7 +300,10 @@ describe('showModal and awaitModal', () => {
       raw: ci,
     });
 
-    const submission = await adapter.awaitModal({ timeout: 60000, userId: 'user-1' });
+    const submission = await adapter.awaitModal({
+      timeout: 60000,
+      userId: 'user-1',
+    });
 
     expect(ci.showModal).toHaveBeenCalledWith(modalData);
     expect(submission.getFieldValue('field-1')).toBe('typed text');
@@ -333,9 +313,9 @@ describe('showModal and awaitModal', () => {
     const interaction = mockCommandInteraction();
     const adapter = new DiscordAdapter(interaction);
 
-    await expect(adapter.awaitModal({ timeout: 5000, userId: 'user-1' })).rejects.toThrow(
-      'No pending modal interaction',
-    );
+    await expect(
+      adapter.awaitModal({ timeout: 5000, userId: 'user-1' }),
+    ).rejects.toThrow('No pending modal interaction');
   });
 });
 
@@ -413,7 +393,18 @@ describe('_editEphemeralMessage', () => {
     // Ephemeral is established by deferReply — editReply does NOT re-add the flag.
     // Discord already knows the reply is ephemeral from the initial defer.
     await adapter.deferReply({ ephemeral: true });
-    await adapter.sendPayload(embedsPayload({ behavior: { messageCleanup: 'edit', ephemeral: true, ephemeralFallbackDisposal: 'strip', closedMessage: 'closed', deleteUserMessages: false, timeoutMessage: '*This interaction has timed out.*' } }));
+    await adapter.sendPayload(
+      embedsPayload({
+        behavior: {
+          messageCleanup: 'edit',
+          ephemeral: true,
+          ephemeralFallbackDisposal: 'strip',
+          closedMessage: 'closed',
+          deleteUserMessages: false,
+          timeoutMessage: '*This interaction has timed out.*',
+        },
+      }),
+    );
 
     expect(interaction.editReply).toHaveBeenCalledTimes(1);
     expect(interaction.editReply).toHaveBeenCalledWith(
@@ -425,13 +416,39 @@ describe('_editEphemeralMessage', () => {
     const interaction = mockCommandInteraction();
     const adapter = new DiscordAdapter(interaction);
 
-    await adapter.sendPayload(embedsPayload({ behavior: { messageCleanup: 'edit', ephemeral: true, ephemeralFallbackDisposal: 'strip', closedMessage: 'closed', deleteUserMessages: false, timeoutMessage: '*This interaction has timed out.*' } }));
+    const ephemeralBehavior = {
+      messageCleanup: 'edit' as const,
+      ephemeral: true,
+      ephemeralFallbackDisposal: 'strip' as const,
+      closedMessage: 'closed',
+      deleteUserMessages: false,
+      timeoutMessage: '*This interaction has timed out.*',
+    };
+
+    // First render — establishes active message via editReply
+    await adapter.sendPayload(
+      embedsPayload({ behavior: ephemeralBehavior }),
+    );
     adapter.seedDeferEphemeral(true);
 
+    // Second render — postAndStrip strips old message then sends followUp,
+    // setting _activeMessageIsFollowUp = true on the new active message
     await adapter.sendPayload(
-      embedsPayload({ behavior: { messageCleanup: 'postAndStrip', ephemeral: true, ephemeralFallbackDisposal: 'strip', closedMessage: 'closed', deleteUserMessages: false, timeoutMessage: '*This interaction has timed out.*' } }),
+      embedsPayload({
+        behavior: {
+          ...ephemeralBehavior,
+          messageCleanup: 'postAndStrip',
+        },
+      }),
+    );
+    expect(interaction.followUp).toHaveBeenCalledTimes(1);
+
+    // Third render — editing an ephemeral followUp message uses rest.patch
+    // (Discord does not allow editReply on a followUp message)
+    await adapter.sendPayload(
+      embedsPayload({ behavior: ephemeralBehavior }),
     );
 
-    expect(interaction.followUp).toHaveBeenCalled();
+    expect(interaction.client.rest.patch).toHaveBeenCalledTimes(1);
   });
 });

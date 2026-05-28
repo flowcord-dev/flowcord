@@ -11,7 +11,9 @@ describe('menu-local state', () => {
 
     function makeMain(session: MenuSessionLike) {
       return new MenuBuilder(session, 'main')
-        .setup((ctx) => { ctx.state.set('count', 0); })
+        .setup((ctx) => {
+          ctx.state.set('count', 0);
+        })
         .setEmbeds(() => [])
         .setButtons(() => [
           {
@@ -23,12 +25,18 @@ describe('menu-local state', () => {
               capturedCount = n;
             },
           },
-          { label: 'Close', style: ButtonStyle.Danger, action: closeMenu() },
+          {
+            label: 'Close',
+            style: ButtonStyle.Danger,
+            action: closeMenu(),
+          },
         ])
         .build();
     }
 
-    const { adapter, startSession } = createTestSession({ main: makeMain });
+    const { adapter, startSession } = createTestSession({
+      main: makeMain,
+    });
     const done = startSession('main');
     await adapter.waitForNextRender();
 
@@ -51,19 +59,34 @@ describe('menu-local state', () => {
 
     function makeMain(session: MenuSessionLike) {
       return new MenuBuilder(session, 'main')
-        .setup((ctx) => { ctx.state.set('count', 0); })
-        .onEnter((ctx) => { capturedCounts.push(ctx.state.get('count') as number); })
+        .setup((ctx) => {
+          ctx.state.set('count', 0);
+        })
+        .onEnter((ctx) => {
+          capturedCounts.push(ctx.state.get('count') as number);
+        })
         .setEmbeds(() => [])
         .setButtons(() => [
           {
             label: 'Increment',
             style: ButtonStyle.Primary,
             action: async (ctx) => {
-              ctx.state.set('count', (ctx.state.get('count') as number) + 1);
+              ctx.state.set(
+                'count',
+                (ctx.state.get('count') as number) + 1,
+              );
             },
           },
-          { label: 'Go Detail', style: ButtonStyle.Secondary, action: goTo('detail') },
-          { label: 'Close', style: ButtonStyle.Danger, action: closeMenu() },
+          {
+            label: 'Go to Detail',
+            style: ButtonStyle.Secondary,
+            action: goTo('detail'),
+          },
+          {
+            label: 'Close',
+            style: ButtonStyle.Danger,
+            action: closeMenu(),
+          },
         ])
         .setTrackedInHistory() // tracked but NOT preserveStateOnReturn
         .build();
@@ -73,14 +96,21 @@ describe('menu-local state', () => {
       return new MenuBuilder(session, 'detail')
         .setEmbeds(() => [])
         .setButtons(() => [
-          { label: 'Back', style: ButtonStyle.Secondary, action: goBack() },
+          {
+            label: 'Back',
+            style: ButtonStyle.Secondary,
+            action: goBack(),
+          },
         ])
         .setReturnable()
         .setFallbackMenu('main')
         .build();
     }
 
-    const { adapter, startSession } = createTestSession({ main: makeMain, detail: makeDetail });
+    const { adapter, startSession } = createTestSession({
+      main: makeMain,
+      detail: makeDetail,
+    });
     const done = startSession('main');
     await adapter.waitForNextRender();
 
@@ -92,7 +122,7 @@ describe('menu-local state', () => {
     }
 
     // Navigate away and back — state should reset since no preserveStateOnReturn
-    const goId = findButtonId(adapter.lastRender!, 'Go Detail');
+    const goId = findButtonId(adapter.lastRender!, 'Go to Detail');
     adapter.enqueueComponent(click(goId!));
     await adapter.waitForNextRender();
 
@@ -111,21 +141,36 @@ describe('menu-local state', () => {
   it('setPreserveStateOnReturn() keeps menu-local state when going back', async () => {
     const capturedCounts: number[] = [];
 
-    function makeMain(session: MenuSessionLike) {
+    function mockMainMenu(session: MenuSessionLike) {
       return new MenuBuilder(session, 'main')
-        .setup((ctx) => { ctx.state.set('count', 0); })
-        .onEnter((ctx) => { capturedCounts.push(ctx.state.get('count') as number); })
+        .setup((ctx) => {
+          ctx.state.set('count', 0);
+        })
+        .onEnter((ctx) => {
+          capturedCounts.push(ctx.state.get('count') as number);
+        })
         .setEmbeds(() => [])
         .setButtons(() => [
           {
             label: 'Increment',
             style: ButtonStyle.Primary,
             action: async (ctx) => {
-              ctx.state.set('count', (ctx.state.get('count') as number) + 1);
+              ctx.state.set(
+                'count',
+                (ctx.state.get('count') as number) + 1,
+              );
             },
           },
-          { label: 'Go Detail', style: ButtonStyle.Secondary, action: goTo('detail') },
-          { label: 'Close', style: ButtonStyle.Danger, action: closeMenu() },
+          {
+            label: 'Go to Detail',
+            style: ButtonStyle.Secondary,
+            action: goTo('detail'),
+          },
+          {
+            label: 'Close',
+            style: ButtonStyle.Danger,
+            action: closeMenu(),
+          },
         ])
         .setTrackedInHistory()
         .setPreserveStateOnReturn()
@@ -136,14 +181,21 @@ describe('menu-local state', () => {
       return new MenuBuilder(session, 'detail')
         .setEmbeds(() => [])
         .setButtons(() => [
-          { label: 'Back', style: ButtonStyle.Secondary, action: goBack() },
+          {
+            label: 'Back',
+            style: ButtonStyle.Secondary,
+            action: goBack(),
+          },
         ])
         .setReturnable()
         .setFallbackMenu('main')
         .build();
     }
 
-    const { adapter, startSession } = createTestSession({ main: makeMain, detail: makeDetail });
+    const { adapter, startSession } = createTestSession({
+      main: mockMainMenu,
+      detail: makeDetail,
+    });
     const done = startSession('main');
     await adapter.waitForNextRender();
 
@@ -155,7 +207,7 @@ describe('menu-local state', () => {
     }
 
     // Navigate away and back
-    const goId = findButtonId(adapter.lastRender!, 'Go Detail');
+    const goId = findButtonId(adapter.lastRender!, 'Go to Detail');
     adapter.enqueueComponent(click(goId!));
     await adapter.waitForNextRender();
 
@@ -176,12 +228,18 @@ describe('session state', () => {
   it('sessionState is shared across menus within a session', async () => {
     let detailSawValue: unknown;
 
-    function makeMain(session: MenuSessionLike) {
+    function mockMainSessionMenu(session: MenuSessionLike) {
       return new MenuBuilder(session, 'main')
-        .setup((ctx) => { ctx.sessionState.set('shared', 'hello'); })
+        .setup((ctx) => {
+          ctx.sessionState.set('shared', 'hello');
+        })
         .setEmbeds(() => [])
         .setButtons(() => [
-          { label: 'Go Detail', style: ButtonStyle.Primary, action: goTo('detail') },
+          {
+            label: 'Go to Detail',
+            style: ButtonStyle.Primary,
+            action: goTo('detail'),
+          },
         ])
         .setTrackedInHistory()
         .build();
@@ -189,19 +247,28 @@ describe('session state', () => {
 
     function makeDetail(session: MenuSessionLike) {
       return new MenuBuilder(session, 'detail')
-        .setup((ctx) => { detailSawValue = ctx.sessionState.get('shared'); })
+        .setup((ctx) => {
+          detailSawValue = ctx.sessionState.get('shared');
+        })
         .setEmbeds(() => [])
         .setButtons(() => [
-          { label: 'Close', style: ButtonStyle.Danger, action: closeMenu() },
+          {
+            label: 'Close',
+            style: ButtonStyle.Danger,
+            action: closeMenu(),
+          },
         ])
         .build();
     }
 
-    const { adapter, startSession } = createTestSession({ main: makeMain, detail: makeDetail });
+    const { adapter, startSession } = createTestSession({
+      main: mockMainSessionMenu,
+      detail: makeDetail,
+    });
     const done = startSession('main');
     await adapter.waitForNextRender();
 
-    const goId = findButtonId(adapter.lastRender!, 'Go Detail');
+    const goId = findButtonId(adapter.lastRender!, 'Go to Detail');
     adapter.enqueueComponent(click(goId!));
     await adapter.waitForNextRender();
 
@@ -217,10 +284,16 @@ describe('session state', () => {
 
     function makeMain(session: MenuSessionLike) {
       return new MenuBuilder(session, 'main')
-        .setup((ctx) => { capturedRole = ctx.sessionState.get('role'); })
+        .setup((ctx) => {
+          capturedRole = ctx.sessionState.get('role');
+        })
         .setEmbeds(() => [])
         .setButtons(() => [
-          { label: 'Close', style: ButtonStyle.Danger, action: closeMenu() },
+          {
+            label: 'Close',
+            style: ButtonStyle.Danger,
+            action: closeMenu(),
+          },
         ])
         .build();
     }
@@ -247,7 +320,7 @@ describe('session state', () => {
         .setEmbeds(() => [])
         .setButtons(() => [
           {
-            label: 'Go Detail',
+            label: 'Go to Detail',
             style: ButtonStyle.Primary,
             action: async (ctx) => {
               ctx.sessionState.set('step', 'visited-main');
@@ -261,19 +334,28 @@ describe('session state', () => {
 
     function makeDetail(session: MenuSessionLike) {
       return new MenuBuilder(session, 'detail')
-        .setup((ctx) => { values.push(ctx.sessionState.get('step')); })
+        .setup((ctx) => {
+          values.push(ctx.sessionState.get('step'));
+        })
         .setEmbeds(() => [])
         .setButtons(() => [
-          { label: 'Close', style: ButtonStyle.Danger, action: closeMenu() },
+          {
+            label: 'Close',
+            style: ButtonStyle.Danger,
+            action: closeMenu(),
+          },
         ])
         .build();
     }
 
-    const { adapter, startSession } = createTestSession({ main: makeMain, detail: makeDetail });
+    const { adapter, startSession } = createTestSession({
+      main: makeMain,
+      detail: makeDetail,
+    });
     const done = startSession('main');
     await adapter.waitForNextRender();
 
-    const goId = findButtonId(adapter.lastRender!, 'Go Detail');
+    const goId = findButtonId(adapter.lastRender!, 'Go to Detail');
     adapter.enqueueComponent(click(goId!));
     await adapter.waitForNextRender();
 

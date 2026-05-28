@@ -1,48 +1,98 @@
-/**
- * Minimal stubs for Discord.js types used in test sessions.
- *
- * These stubs satisfy TypeScript's structural type requirements without
- * requiring a live Discord.js client or connection. Properties that are
- * not needed by the framework's test path throw descriptive errors if
- * accidentally accessed, making test failures easy to diagnose.
- *
- * Used by createTestSession() to wire up MenuSession/MenuEngine without
- * any real Discord.js infrastructure.
- */
-import type { ChatInputCommandInteraction, Client } from 'discord.js';
+import type {
+  ChatInputCommandInteraction,
+  Client,
+  Message,
+  MessageComponentInteraction,
+  ModalSubmitInteraction,
+} from 'discord.js';
+
+export function mockMessage(
+  overrides: Partial<Record<string, unknown>> = {},
+): Message {
+  const edit = jest.fn();
+  const del = jest.fn();
+  const msg = {
+    id: 'msg-1',
+    channelId: 'ch-1',
+    content: '',
+    author: { id: 'user-1' },
+    edit,
+    delete: del,
+    awaitMessageComponent: jest
+      .fn()
+      .mockReturnValue(new Promise(() => {})),
+    ...overrides,
+  } as unknown as Message;
+  edit.mockResolvedValue(msg);
+  del.mockResolvedValue(msg);
+  return msg;
+}
 
 /**
  * Build a stub ChatInputCommandInteraction for test sessions.
  * Only the fields actually accessed by MenuSession (after the adapter
  * refactor) need to be real values: user.id, client.
  */
-export function mockInteraction(
-  userId: string,
-  client: Client<true>,
+export function mockCommandInteraction(
+  overrides: Partial<Record<string, unknown>> = {},
+  options: {
+    message?: Message;
+  } = {},
 ): ChatInputCommandInteraction {
-  const stub: Record<string, unknown> = {
+  const msg = options.message ?? mockMessage();
+  return {
     user: {
-      id: userId,
+      id: 'user-1',
       displayName: 'TestUser',
       displayAvatarURL: () => '',
     },
-    client,
-    // channel is not accessed by MenuSession after the adapter refactor —
-    // all I/O goes through FlowCordAdapter.
+    client: mockClient(),
     channel: null,
     applicationId: 'test-app-id',
     token: 'test-token',
     guildId: null,
     deferred: false,
     replied: false,
-    // Provide no-op stubs for methods MenuEngine's defaultOnError may call
-    editReply: async () => ({}),
-    reply: async () => ({}),
-    deferReply: async () => {},
-    followUp: async () => ({}),
-  };
+    editReply: jest.fn().mockResolvedValue(msg),
+    reply: jest.fn().mockResolvedValue(msg),
+    deferReply: jest.fn().mockResolvedValue(undefined),
+    followUp: jest.fn().mockResolvedValue(msg),
+    ...overrides,
+  } as unknown as ChatInputCommandInteraction;
+}
 
-  return stub as unknown as ChatInputCommandInteraction;
+export function mockComponentInteraction(
+  overrides: Partial<Record<string, unknown>> = {},
+): MessageComponentInteraction {
+  return {
+    customId: 'btn-1',
+    user: { id: 'user-1' },
+    deferred: false,
+    replied: false,
+    deferUpdate: jest.fn().mockResolvedValue(undefined),
+    update: jest.fn().mockResolvedValue(undefined),
+    showModal: jest.fn().mockResolvedValue(undefined),
+    awaitModalSubmit: jest
+      .fn()
+      .mockReturnValue(new Promise(() => {})),
+    isAnySelectMenu: jest.fn().mockReturnValue(false),
+    isButton: jest.fn().mockReturnValue(true),
+    ...overrides,
+  } as unknown as MessageComponentInteraction;
+}
+
+export function mockModalSubmitInteraction(
+  overrides: Partial<Record<string, unknown>> = {},
+): ModalSubmitInteraction {
+  return {
+    customId: 'my-modal',
+    user: { id: 'user-1' },
+    fields: {
+      getTextInputValue: jest.fn().mockReturnValue(''),
+    },
+    deferUpdate: jest.fn().mockResolvedValue(undefined),
+    ...overrides,
+  } as unknown as ModalSubmitInteraction;
 }
 
 /**
@@ -57,7 +107,7 @@ export function mockClient(): Client<true> {
       tag: 'TestBot#0000',
     },
     rest: {
-      patch: async () => ({}),
+      patch: jest.fn().mockResolvedValue({}),
     },
     // Proxy other accesses with a descriptive error
   };

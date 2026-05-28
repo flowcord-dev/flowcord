@@ -1,37 +1,56 @@
 import { ButtonStyle } from 'discord.js';
-import { MenuBuilder } from '../../menu/MenuBuilder';
-import { goTo, goBack, closeMenu, guard, pipeline } from '../../action';
-import { createTestSession } from '../createTestSession';
+
+import {
+  goTo,
+  goBack,
+  closeMenu,
+  guard,
+  pipeline,
+} from '../../action';
 import type { MenuSessionLike } from '../../context/MenuContext';
+import { MenuBuilder } from '../../menu/MenuBuilder';
+import { createTestSession } from '../createTestSession';
 import { click, findButtonId, reservedClick } from './helpers';
 
 // ---------------------------------------------------------------------------
 // Menu factories
 // ---------------------------------------------------------------------------
 
-function makeMain(session: MenuSessionLike) {
+function mockMainMenu(session: MenuSessionLike) {
   return new MenuBuilder(session, 'main')
     .setEmbeds(() => [])
     .setButtons(() => [
-      { label: 'Go Detail', style: ButtonStyle.Primary, action: goTo('detail') },
-      { label: 'Close', style: ButtonStyle.Danger, action: closeMenu() },
+      {
+        label: 'Go to Detail',
+        style: ButtonStyle.Primary,
+        action: goTo('detail'),
+      },
+      {
+        label: 'Close',
+        style: ButtonStyle.Danger,
+        action: closeMenu(),
+      },
     ])
     .setTrackedInHistory()
     .build();
 }
 
-function makeDetail(session: MenuSessionLike) {
+function mockDetailMenu(session: MenuSessionLike) {
   return new MenuBuilder(session, 'detail')
     .setEmbeds(() => [])
     .setButtons(() => [
-      { label: 'Back', style: ButtonStyle.Secondary, action: goBack() },
+      {
+        label: 'Back',
+        style: ButtonStyle.Secondary,
+        action: goBack(),
+      },
     ])
     .setReturnable()
     .setFallbackMenu('main')
     .build();
 }
 
-function makeCancellable(session: MenuSessionLike) {
+function mockCancellableMenu(session: MenuSessionLike) {
   return new MenuBuilder(session, 'main')
     .setEmbeds(() => [])
     .setButtons(() => [])
@@ -39,7 +58,7 @@ function makeCancellable(session: MenuSessionLike) {
     .build();
 }
 
-function makeGuarded(session: MenuSessionLike) {
+function mockGuardedMenu(session: MenuSessionLike) {
   return new MenuBuilder(session, 'main')
     .setEmbeds(() => [])
     .setButtons(() => [
@@ -51,7 +70,11 @@ function makeGuarded(session: MenuSessionLike) {
           goTo('detail'),
         ),
       },
-      { label: 'Close', style: ButtonStyle.Danger, action: closeMenu() },
+      {
+        label: 'Close',
+        style: ButtonStyle.Danger,
+        action: closeMenu(),
+      },
     ])
     .build();
 }
@@ -62,7 +85,10 @@ function makeGuarded(session: MenuSessionLike) {
 
 describe('session lifecycle', () => {
   it('renders initial menu on start', async () => {
-    const { adapter, startSession } = createTestSession({ main: makeMain, detail: makeDetail });
+    const { adapter, startSession } = createTestSession({
+      main: mockMainMenu,
+      detail: mockDetailMenu,
+    });
     const done = startSession('main');
 
     await adapter.waitForNextRender();
@@ -79,12 +105,18 @@ describe('session lifecycle', () => {
   });
 
   it('navigates to detail menu via goTo()', async () => {
-    const { adapter, startSession } = createTestSession({ main: makeMain, detail: makeDetail });
+    const { adapter, startSession } = createTestSession({
+      main: mockMainMenu,
+      detail: mockDetailMenu,
+    });
     const done = startSession('main');
 
     await adapter.waitForNextRender();
 
-    const goDetailId = findButtonId(adapter.lastRender!, 'Go Detail');
+    const goDetailId = findButtonId(
+      adapter.lastRender!,
+      'Go to Detail',
+    );
     expect(goDetailId).not.toBeNull();
     adapter.enqueueComponent(click(goDetailId!));
     await adapter.waitForNextRender();
@@ -107,17 +139,27 @@ describe('session lifecycle', () => {
   });
 
   it('goBack() via reserved Back button returns to previous menu', async () => {
-    const { adapter, startSession } = createTestSession({ main: makeMain, detail: makeDetail });
+    const { adapter, startSession } = createTestSession({
+      main: mockMainMenu,
+      detail: mockDetailMenu,
+    });
     const done = startSession('main');
 
     await adapter.waitForNextRender();
 
-    const goDetailId = findButtonId(adapter.lastRender!, 'Go Detail');
+    const goDetailId = findButtonId(
+      adapter.lastRender!,
+      'Go to Detail',
+    );
     adapter.enqueueComponent(click(goDetailId!));
     await adapter.waitForNextRender();
 
     // Use reserved back button (injected by setReturnable)
-    const reservedBack = reservedClick(adapter.lastRender!, '__reserved_back', 'detail');
+    const reservedBack = reservedClick(
+      adapter.lastRender!,
+      '__reserved_back',
+      'detail',
+    );
     adapter.enqueueComponent(reservedBack);
     await adapter.waitForNextRender();
 
@@ -130,12 +172,18 @@ describe('session lifecycle', () => {
   });
 
   it('cancel via reserved Cancel button ends session with reason=cancelled', async () => {
-    const { adapter, startSession } = createTestSession({ main: makeCancellable });
+    const { adapter, startSession } = createTestSession({
+      main: mockCancellableMenu,
+    });
     const done = startSession('main');
 
     await adapter.waitForNextRender();
 
-    const cancelId = reservedClick(adapter.lastRender!, '__reserved_cancel', 'main');
+    const cancelId = reservedClick(
+      adapter.lastRender!,
+      '__reserved_cancel',
+      'main',
+    );
     adapter.enqueueComponent(cancelId);
     await done;
 
@@ -143,7 +191,10 @@ describe('session lifecycle', () => {
   });
 
   it('closeMenu() action ends session with reason=closed', async () => {
-    const { adapter, startSession } = createTestSession({ main: makeMain, detail: makeDetail });
+    const { adapter, startSession } = createTestSession({
+      main: mockMainMenu,
+      detail: mockDetailMenu,
+    });
     const done = startSession('main');
 
     await adapter.waitForNextRender();
@@ -156,7 +207,10 @@ describe('session lifecycle', () => {
   });
 
   it('endPromise resolves to the terminal reason', async () => {
-    const { adapter, startSession } = createTestSession({ main: makeMain, detail: makeDetail });
+    const { adapter, startSession } = createTestSession({
+      main: mockMainMenu,
+      detail: mockDetailMenu,
+    });
     const done = startSession('main');
 
     await adapter.waitForNextRender();
@@ -170,7 +224,10 @@ describe('session lifecycle', () => {
   });
 
   it('guard failure does not navigate — menu re-renders on same page', async () => {
-    const { adapter, startSession } = createTestSession({ main: makeGuarded, detail: makeDetail });
+    const { adapter, startSession } = createTestSession({
+      main: mockGuardedMenu,
+      detail: mockDetailMenu,
+    });
     const done = startSession('main');
 
     await adapter.waitForNextRender();
@@ -185,7 +242,10 @@ describe('session lifecycle', () => {
 
     // Session should still be on 'main' — it did not navigate to 'detail'
     // (we can verify by checking the 'Blocked' button is still present)
-    const stillHasBlocked = findButtonId(adapter.lastRender!, 'Blocked');
+    const stillHasBlocked = findButtonId(
+      adapter.lastRender!,
+      'Blocked',
+    );
     expect(stillHasBlocked).not.toBeNull();
 
     // Clean up — close the session so the queue doesn't leave open handles
@@ -200,10 +260,16 @@ describe('session lifecycle', () => {
 
     function makeReader(session: MenuSessionLike) {
       return new MenuBuilder(session, 'main')
-        .setup((ctx) => { capturedValue = ctx.sessionState.get('greeting'); })
+        .setup((ctx) => {
+          capturedValue = ctx.sessionState.get('greeting');
+        })
         .setEmbeds(() => [])
         .setButtons(() => [
-          { label: 'Close', style: ButtonStyle.Danger, action: closeMenu() },
+          {
+            label: 'Close',
+            style: ButtonStyle.Danger,
+            action: closeMenu(),
+          },
         ])
         .build();
     }
@@ -228,17 +294,23 @@ describe('session lifecycle', () => {
 // ---------------------------------------------------------------------------
 
 describe('async factory initialization', () => {
-  async function makeAsync(session: MenuSessionLike) {
+  const mockAsyncMenu = async (session: MenuSessionLike) => {
     return new MenuBuilder(session, 'main')
       .setEmbeds(() => [])
       .setButtons(() => [
-        { label: 'Close', style: ButtonStyle.Danger, action: closeMenu() },
+        {
+          label: 'Close',
+          style: ButtonStyle.Danger,
+          action: closeMenu(),
+        },
       ])
       .build();
-  }
+  };
 
   it('renders the initial menu when the factory is async', async () => {
-    const { adapter, startSession } = createTestSession({ main: makeAsync });
+    const { adapter, startSession } = createTestSession({
+      main: mockAsyncMenu,
+    });
     const done = startSession('main');
 
     await adapter.waitForNextRender();
@@ -250,6 +322,22 @@ describe('async factory initialization', () => {
     await done;
     expect(adapter.terminals[0]?.reason).toBe('closed');
   });
+
+  it('throws when a sync factory returns a Promise without being declared async', async () => {
+    // Regular (non-async) function that returns a Promise — the framework
+    // detects the mismatch at runtime and throws a descriptive error.
+    const mockMainMenu = (session: MenuSessionLike) =>
+      Promise.resolve(
+        new MenuBuilder(session, 'main').setEmbeds(() => []).build(),
+      );
+
+    const { startSession } = createTestSession({
+      main: mockMainMenu,
+    });
+    await expect(startSession('main')).rejects.toThrow(
+      'returned a Promise but is not declared async',
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -257,7 +345,7 @@ describe('async factory initialization', () => {
 // ---------------------------------------------------------------------------
 
 describe('openSubMenu and complete', () => {
-  function makeSub(session: MenuSessionLike) {
+  const mockSubMenu = (session: MenuSessionLike) => {
     return new MenuBuilder(session, 'sub')
       .setEmbeds(() => [])
       .setButtons(() => [
@@ -270,12 +358,12 @@ describe('openSubMenu and complete', () => {
         },
       ])
       .build();
-  }
+  };
 
   it('onComplete receives the result passed to complete()', async () => {
     const onComplete = jest.fn().mockResolvedValue(undefined);
 
-    function makeMain(session: MenuSessionLike) {
+    const mockMainMenu = (session: MenuSessionLike) => {
       return new MenuBuilder(session, 'main')
         .setEmbeds(() => [])
         .setButtons(() => [
@@ -286,26 +374,36 @@ describe('openSubMenu and complete', () => {
               await ctx.openSubMenu('sub', { onComplete });
             },
           },
-          { label: 'Close', style: ButtonStyle.Danger, action: closeMenu() },
+          {
+            label: 'Close',
+            style: ButtonStyle.Danger,
+            action: closeMenu(),
+          },
         ])
         .setTrackedInHistory()
         .build();
-    }
+    };
 
-    const { adapter, startSession } = createTestSession({ main: makeMain, sub: makeSub });
+    const { adapter, startSession } = createTestSession({
+      main: mockMainMenu,
+      sub: mockSubMenu,
+    });
     const done = startSession('main');
 
-    await adapter.waitForNextRender();                    // main menu
+    await adapter.waitForNextRender(); // main menu
     const openId = findButtonId(adapter.lastRender!, 'Open Sub');
     adapter.enqueueComponent(click(openId!));
-    await adapter.waitForNextRender();                    // sub menu
+    await adapter.waitForNextRender(); // sub menu
 
     const finishId = findButtonId(adapter.lastRender!, 'Finish');
     adapter.enqueueComponent(click(finishId!));
-    await adapter.waitForNextRender();                    // back to main
+    await adapter.waitForNextRender(); // back to main
 
     expect(onComplete).toHaveBeenCalledTimes(1);
-    expect(onComplete).toHaveBeenCalledWith(expect.anything(), 'sub-result');
+    expect(onComplete).toHaveBeenCalledWith(
+      expect.anything(),
+      'sub-result',
+    );
 
     const closeId = findButtonId(adapter.lastRender!, 'Close');
     adapter.enqueueComponent(click(closeId!));
@@ -313,7 +411,7 @@ describe('openSubMenu and complete', () => {
   });
 
   it('complete() returns the session to the parent menu', async () => {
-    function makeMain(session: MenuSessionLike) {
+    const mockMainMenu = (session: MenuSessionLike) => {
       return new MenuBuilder(session, 'main')
         .setEmbeds(() => [])
         .setButtons(() => [
@@ -321,29 +419,40 @@ describe('openSubMenu and complete', () => {
             label: 'Open Sub',
             style: ButtonStyle.Primary,
             action: async (ctx) => {
-              await ctx.openSubMenu('sub', { onComplete: async () => {} });
+              await ctx.openSubMenu('sub', {
+                onComplete: async () => {},
+              });
             },
           },
-          { label: 'Close', style: ButtonStyle.Danger, action: closeMenu() },
+          {
+            label: 'Close',
+            style: ButtonStyle.Danger,
+            action: closeMenu(),
+          },
         ])
         .setTrackedInHistory()
         .build();
-    }
+    };
 
-    const { adapter, startSession } = createTestSession({ main: makeMain, sub: makeSub });
+    const { adapter, startSession } = createTestSession({
+      main: mockMainMenu,
+      sub: mockSubMenu,
+    });
     const done = startSession('main');
 
-    await adapter.waitForNextRender();                    // main menu
+    await adapter.waitForNextRender(); // main menu
     const openId = findButtonId(adapter.lastRender!, 'Open Sub');
     adapter.enqueueComponent(click(openId!));
-    await adapter.waitForNextRender();                    // sub menu
+    await adapter.waitForNextRender(); // sub menu
 
     const finishId = findButtonId(adapter.lastRender!, 'Finish');
     adapter.enqueueComponent(click(finishId!));
-    await adapter.waitForNextRender();                    // back to main
+    await adapter.waitForNextRender(); // back to main
 
     // Parent menu's 'Open Sub' button is visible again
-    expect(findButtonId(adapter.lastRender!, 'Open Sub')).not.toBeNull();
+    expect(
+      findButtonId(adapter.lastRender!, 'Open Sub'),
+    ).not.toBeNull();
 
     const closeId = findButtonId(adapter.lastRender!, 'Close');
     adapter.enqueueComponent(click(closeId!));
@@ -357,7 +466,7 @@ describe('openSubMenu and complete', () => {
 
 describe('hardRefresh', () => {
   it('re-renders the current menu from the factory', async () => {
-    function makeMain(session: MenuSessionLike) {
+    const mockMainMenu = (session: MenuSessionLike) => {
       return new MenuBuilder(session, 'main')
         .setEmbeds(() => [])
         .setButtons(() => [
@@ -368,12 +477,18 @@ describe('hardRefresh', () => {
               await ctx.hardRefresh();
             },
           },
-          { label: 'Close', style: ButtonStyle.Danger, action: closeMenu() },
+          {
+            label: 'Close',
+            style: ButtonStyle.Danger,
+            action: closeMenu(),
+          },
         ])
         .build();
-    }
+    };
 
-    const { adapter, startSession } = createTestSession({ main: makeMain });
+    const { adapter, startSession } = createTestSession({
+      main: mockMainMenu,
+    });
     const done = startSession('main');
 
     await adapter.waitForNextRender();
@@ -397,36 +512,44 @@ describe('hardRefresh', () => {
 
 describe('fallback menu', () => {
   it('goBack() activates the fallback menu when the navigation stack is empty', async () => {
-    function makeMain(session: MenuSessionLike) {
+    const mockMainMenu = (session: MenuSessionLike) => {
       return new MenuBuilder(session, 'main')
         .setEmbeds(() => [])
         .setButtons(() => [
-          { label: 'Close', style: ButtonStyle.Danger, action: closeMenu() },
+          {
+            label: 'Close',
+            style: ButtonStyle.Danger,
+            action: closeMenu(),
+          },
         ])
         .build();
-    }
+    };
 
-    function makeDetail(session: MenuSessionLike) {
+    const mockDetailMenu = (session: MenuSessionLike) => {
       return new MenuBuilder(session, 'detail')
         .setEmbeds(() => [])
         .setButtons(() => [])
         .setReturnable()
         .setFallbackMenu('main')
         .build();
-    }
+    };
 
     // Start directly at 'detail' — no history stack entry for 'main'
     const { adapter, startSession } = createTestSession({
-      main: makeMain,
-      detail: makeDetail,
+      main: mockMainMenu,
+      detail: mockDetailMenu,
     });
     const done = startSession('detail');
 
-    await adapter.waitForNextRender();                    // detail menu
+    await adapter.waitForNextRender(); // detail menu
 
-    const backClick = reservedClick(adapter.lastRender!, '__reserved_back', 'detail');
+    const backClick = reservedClick(
+      adapter.lastRender!,
+      '__reserved_back',
+      'detail',
+    );
     adapter.enqueueComponent(backClick);
-    await adapter.waitForNextRender();                    // fallback: main menu
+    await adapter.waitForNextRender(); // fallback: main menu
 
     // Main menu's 'Close' button is visible
     expect(findButtonId(adapter.lastRender!, 'Close')).not.toBeNull();
@@ -434,6 +557,33 @@ describe('fallback menu', () => {
     const closeId = findButtonId(adapter.lastRender!, 'Close');
     adapter.enqueueComponent(click(closeId!));
     await done;
+    expect(adapter.terminals[0]?.reason).toBe('closed');
+  });
+
+  it('goBack() with empty stack and no fallback menu closes the session', async () => {
+    const mockMainMenu = (session: MenuSessionLike) => {
+      return new MenuBuilder(session, 'main')
+        .setEmbeds(() => [])
+        .setButtons(() => [
+          {
+            label: 'Go Back',
+            style: ButtonStyle.Secondary,
+            action: goBack(),
+          },
+        ])
+        .build();
+    };
+
+    const { adapter, startSession } = createTestSession({
+      main: mockMainMenu,
+    });
+    const done = startSession('main');
+    await adapter.waitForNextRender();
+
+    const backId = findButtonId(adapter.lastRender!, 'Go Back');
+    adapter.enqueueComponent(click(backId!));
+    await done;
+
     expect(adapter.terminals[0]?.reason).toBe('closed');
   });
 });

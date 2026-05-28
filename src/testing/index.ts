@@ -5,9 +5,12 @@ export type {
 } from './createTestSession';
 export {
   mockClient,
-  mockInteraction,
+  mockCommandInteraction,
+  mockComponentInteraction,
   mockMenuContext,
   mockMenuSessionLike,
+  mockMessage,
+  mockModalSubmitInteraction,
 } from './mocks';
 export {
   SimulatedAdapter,

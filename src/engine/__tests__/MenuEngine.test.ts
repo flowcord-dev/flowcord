@@ -1,5 +1,9 @@
+import {
+  mockClient,
+  mockCommandInteraction,
+  mockComponentInteraction,
+} from '../../testing';
 import { MenuEngine } from '../MenuEngine';
-import { mockClient, mockInteraction } from '../../testing/mocks';
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -12,7 +16,10 @@ describe('configuration', () => {
   });
 
   it('timeout returns the configured value', () => {
-    const engine = new MenuEngine({ client: mockClient(), timeout: 30_000 });
+    const engine = new MenuEngine({
+      client: mockClient(),
+      timeout: 30_000,
+    });
     expect(engine.timeout).toBe(30_000);
   });
 
@@ -23,12 +30,18 @@ describe('configuration', () => {
 
   it('globalBehavior returns the configured policy', () => {
     const policy = { default: { ephemeral: true } };
-    const engine = new MenuEngine({ client: mockClient(), behavior: policy });
+    const engine = new MenuEngine({
+      client: mockClient(),
+      behavior: policy,
+    });
     expect(engine.globalBehavior).toStrictEqual(policy);
   });
 
   it('enableTracing: true — tracer records emitted events', () => {
-    const engine = new MenuEngine({ client: mockClient(), enableTracing: true });
+    const engine = new MenuEngine({
+      client: mockClient(),
+      enableTracing: true,
+    });
     engine.tracer.record({
       from: 'menu-a',
       to: 'menu-b',
@@ -94,15 +107,21 @@ describe('getSession', () => {
 describe('routeComponentInteraction', () => {
   it('returns false when the customId has no FlowCord session prefix', () => {
     const engine = new MenuEngine({ client: mockClient() });
-    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-    const result = engine.routeComponentInteraction({ customId: 'plain-btn' } as any);
+    const result = engine.routeComponentInteraction(
+      mockComponentInteraction({
+        customId: 'plain-btn',
+      }),
+    );
     expect(result).toBe(false);
   });
 
   it('returns false when the parsed sessionId does not match any active session', () => {
     const engine = new MenuEngine({ client: mockClient() });
-    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-    const result = engine.routeComponentInteraction({ customId: 'ghost-sess:main:btn' } as any);
+    const result = engine.routeComponentInteraction(
+      mockComponentInteraction({
+        customId: 'ghost-sess:main:btn',
+      }),
+    );
     expect(result).toBe(false);
   });
 });
@@ -119,7 +138,9 @@ describe('isFlowCordInteraction', () => {
 
   it('returns false when the parsed sessionId is not active', () => {
     const engine = new MenuEngine({ client: mockClient() });
-    expect(engine.isFlowCordInteraction('ghost-sess:main:btn')).toBe(false);
+    expect(engine.isFlowCordInteraction('ghost-sess:main:btn')).toBe(
+      false,
+    );
   });
 });
 
@@ -132,10 +153,12 @@ describe('handleInteraction — error path', () => {
     const client = mockClient();
     const onError = jest.fn().mockResolvedValue(undefined);
     const engine = new MenuEngine({ client, onError });
-    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleError = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
 
     await engine.handleInteraction(
-      mockInteraction('usr-1', client),
+      mockCommandInteraction({ client }),
       'not-registered',
     );
 
@@ -149,10 +172,12 @@ describe('handleInteraction — error path', () => {
       client,
       onError: jest.fn().mockResolvedValue(undefined),
     });
-    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleError = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
 
     await engine.handleInteraction(
-      mockInteraction('usr-1', client),
+      mockCommandInteraction({ client }),
       'not-registered',
     );
 
