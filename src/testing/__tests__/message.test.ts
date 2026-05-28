@@ -1,31 +1,28 @@
 import { ButtonStyle } from 'discord.js';
 import { MenuBuilder } from '../../menu/MenuBuilder';
 import { closeMenu } from '../../action';
-import { createTestSession } from '../createTestSession';
 import type { MenuSessionLike } from '../../context/MenuContext';
-import { click, findButtonId, message } from './helpers';
+import { MenuHarness } from '../MenuHarness';
 
 describe('message-collection menus', () => {
   it('message handler receives the message content', async () => {
     let captured: string | null = null;
 
-    function makeMain(session: MenuSessionLike) {
-      return new MenuBuilder(session, 'main')
+    const mockMainMenu = (session: MenuSessionLike) =>
+      new MenuBuilder(session, 'main')
         .setEmbeds(() => [])
         .setMessageHandler(async (ctx, response) => {
           captured = response;
-          // Close after handling so the session ends cleanly
           await closeMenu()(ctx);
         })
         .build();
-    }
 
-    const { adapter, startSession } = createTestSession({ main: makeMain });
-    const done = startSession('main');
-    await adapter.waitForNextRender();
+    const sim = new MenuHarness({ main: mockMainMenu });
+    await sim.start('main');
 
-    adapter.enqueueMessage(message('hello world'));
-    await done;
+    // sendMessage waits for next render; closeMenu() sends a terminal payload
+    // which also wakes up render listeners, so this resolves cleanly.
+    await sim.sendMessage('hello world');
 
     expect(captured).toBe('hello world');
   });
@@ -34,8 +31,8 @@ describe('message-collection menus', () => {
     const received: string[] = [];
     let callCount = 0;
 
-    function makeMain(session: MenuSessionLike) {
-      return new MenuBuilder(session, 'main')
+    const mockMainMenu = (session: MenuSessionLike) =>
+      new MenuBuilder(session, 'main')
         .setEmbeds(() => [])
         .setMessageHandler(async (ctx, response) => {
           received.push(response);
@@ -45,17 +42,12 @@ describe('message-collection menus', () => {
           }
         })
         .build();
-    }
 
-    const { adapter, startSession } = createTestSession({ main: makeMain });
-    const done = startSession('main');
-    await adapter.waitForNextRender();
+    const sim = new MenuHarness({ main: mockMainMenu });
+    await sim.start('main');
 
-    adapter.enqueueMessage(message('first'));
-    await adapter.waitForNextRender(); // re-render after first message
-
-    adapter.enqueueMessage(message('second'));
-    await done;
+    await sim.sendMessage('first');
+    await sim.sendMessage('second');
 
     expect(received).toEqual(['first', 'second']);
   });
@@ -66,31 +58,28 @@ describe('mixed interaction menus (buttons + message handler)', () => {
     let msgHandled: string | null = null;
     let btnClicked = false;
 
-    function makeMain(session: MenuSessionLike) {
-      return new MenuBuilder(session, 'main')
+    const mockMainMenu = (session: MenuSessionLike) =>
+      new MenuBuilder(session, 'main')
         .setEmbeds(() => [])
         .setButtons(() => [
           {
             label: 'Action',
             style: ButtonStyle.Primary,
-            action: async () => { btnClicked = true; },
+            action: async () => {
+              btnClicked = true;
+            },
           },
-          { label: 'Close', style: ButtonStyle.Danger, action: closeMenu() },
         ])
         .setMessageHandler(async (ctx, response) => {
           msgHandled = response;
           await closeMenu()(ctx);
         })
         .build();
-    }
 
-    const { adapter, startSession } = createTestSession({ main: makeMain });
-    const done = startSession('main');
-    await adapter.waitForNextRender();
+    const sim = new MenuHarness({ main: mockMainMenu });
+    await sim.start('main');
 
-    // Enqueue a message — should win the race against awaitComponent
-    adapter.enqueueMessage(message('typed text'));
-    await done;
+    await sim.sendMessage('typed text');
 
     expect(msgHandled).toBe('typed text');
     expect(btnClicked).toBe(false);
@@ -100,36 +89,31 @@ describe('mixed interaction menus (buttons + message handler)', () => {
     let msgHandled: string | null = null;
     let btnClicked = false;
 
-    function makeMain(session: MenuSessionLike) {
-      return new MenuBuilder(session, 'main')
+    const mockMainMenu = (session: MenuSessionLike) =>
+      new MenuBuilder(session, 'main')
         .setEmbeds(() => [])
         .setButtons(() => [
           {
             label: 'Action',
             style: ButtonStyle.Primary,
-            action: async () => { btnClicked = true; },
+            action: async () => {
+              btnClicked = true;
+            },
           },
-          { label: 'Close', style: ButtonStyle.Danger, action: closeMenu() },
         ])
         .setMessageHandler(async (_ctx, response) => {
           msgHandled = response;
         })
         .build();
-    }
 
-    const { adapter, startSession } = createTestSession({ main: makeMain });
-    const done = startSession('main');
-    await adapter.waitForNextRender();
+    const sim = new MenuHarness({ main: mockMainMenu });
+    await sim.start('main');
 
-    const actionId = findButtonId(adapter.lastRender!, 'Action');
-    adapter.enqueueComponent(click(actionId!));
-    await adapter.waitForNextRender();
+    await sim.click('Action');
 
     expect(btnClicked).toBe(true);
     expect(msgHandled).toBeNull();
 
-    const closeId = findButtonId(adapter.lastRender!, 'Close');
-    adapter.enqueueComponent(click(closeId!));
-    await done;
+    await sim.end();
   });
 });

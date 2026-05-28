@@ -67,8 +67,9 @@ class InteractionQueue<T> {
   }
 
   dequeue(_options: AwaitOptions): Promise<T> {
-    if (this._queue.length > 0) {
-      return Promise.resolve(this._queue.shift()!);
+    const queued = this._queue.shift();
+    if (queued !== undefined) {
+      return Promise.resolve(queued);
     }
 
     return new Promise<T>((resolve, reject) => {
@@ -86,7 +87,7 @@ class InteractionQueue<T> {
       // Don't prevent Node/Jest from exiting if only this timer remains.
       // The timer is still cleared normally via clearTimeout() when an item
       // is enqueued — unref() only affects process exit, not timer firing.
-      (this._timeoutHandle as unknown as NodeJS.Timeout).unref?.();
+      this._timeoutHandle.unref?.();
     });
   }
 
@@ -157,7 +158,7 @@ export class SimulatedAdapter implements FlowCordAdapter {
   }
 
   get lastRender(): NormalizedRenderPayload | null {
-    return this.renders[this.renders.length - 1] ?? null;
+    return this.renders.at(-1) ?? null;
   }
 
   async deferReply(_options: { ephemeral: boolean }): Promise<void> {

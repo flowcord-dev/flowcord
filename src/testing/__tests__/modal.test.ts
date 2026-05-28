@@ -1,11 +1,15 @@
-import { ButtonStyle, ModalBuilder, ActionRowBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
+import {
+  ButtonStyle,
+  ComponentType,
+  LabelBuilder,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+} from 'discord.js';
 import { MenuBuilder } from '../../menu/MenuBuilder';
-import { closeMenu } from '../../action';
-import { createTestSession } from '../createTestSession';
 import type { MenuSessionLike } from '../../context/MenuContext';
-import { click, findButtonId, modalSubmit } from './helpers';
+import { MenuHarness } from '../MenuHarness';
 
-/** The raw button ID used in the modal button (before namespacing). */
 const OPEN_MODAL_BTN = 'open-modal';
 const MODAL_ID = 'my-modal';
 
@@ -13,22 +17,44 @@ function buildModal(): ModalBuilder {
   return new ModalBuilder()
     .setCustomId(MODAL_ID)
     .setTitle('Test Modal')
-    .addComponents(
-      new ActionRowBuilder<TextInputBuilder>().addComponents(
-        new TextInputBuilder()
-          .setCustomId('name-field')
-          .setLabel('Your Name')
-          .setStyle(TextInputStyle.Short),
-      ),
+    .addLabelComponents(
+      new LabelBuilder()
+        .setLabel('Your Name')
+        .setTextInputComponent(
+          new TextInputBuilder()
+            .setCustomId('name-field')
+            .setStyle(TextInputStyle.Short),
+        ),
     );
 }
+
+// Reusable factory for tests that only need the modal button wired up with a no-op submit.
+const mockMainMenu = (session: MenuSessionLike) =>
+  new MenuBuilder(session, 'main')
+    .setEmbeds(() => [])
+    .setButtons(() => [
+      {
+        label: 'Open Modal',
+        style: ButtonStyle.Primary,
+        id: OPEN_MODAL_BTN,
+        opensModal: MODAL_ID,
+      },
+    ])
+    .setModal(() => [
+      {
+        id: MODAL_ID,
+        builder: buildModal(),
+        onSubmit: async () => {},
+      },
+    ])
+    .build();
 
 describe('modal flow (declarative opensModal)', () => {
   it('onSubmit receives field values from the modal submission', async () => {
     let submittedName: string | null = null;
 
-    function makeMain(session: MenuSessionLike) {
-      return new MenuBuilder(session, 'main')
+    const mockSubmitMenu = (session: MenuSessionLike) =>
+      new MenuBuilder(session, 'main')
         .setEmbeds(() => [])
         .setButtons(() => [
           {
@@ -37,87 +63,50 @@ describe('modal flow (declarative opensModal)', () => {
             id: OPEN_MODAL_BTN,
             opensModal: MODAL_ID,
           },
-          { label: 'Close', style: ButtonStyle.Danger, action: closeMenu() },
         ])
         .setModal(() => [
           {
             id: MODAL_ID,
             builder: buildModal(),
             onSubmit: async (_ctx, fields) => {
-              submittedName = (fields.getField('name-field') as { value: string }).value;
+              submittedName = fields.getField(
+                'name-field',
+                ComponentType.TextInput,
+              ).value;
             },
           },
         ])
         .build();
-    }
 
-    const { adapter, startSession } = createTestSession({ main: makeMain });
-    const done = startSession('main');
-    await adapter.waitForNextRender();
+    const sim = new MenuHarness({ main: mockSubmitMenu });
+    await sim.start('main');
 
-    // Find the namespaced customId for the open-modal button
-    const openModalId = findButtonId(adapter.lastRender!, 'Open Modal');
-    expect(openModalId).not.toBeNull();
-
-    // Click opens the modal (no render occurs — modal is shown, session awaits submit)
-    // Enqueue both click and modal submit before waiting for the next render.
-    adapter.enqueueComponent(click(openModalId!));
-    adapter.enqueueModalSubmit(modalSubmit({ 'name-field': 'Alice' }));
-    await adapter.waitForNextRender();
+    sim.clickModal('Open Modal');
+    await sim.submitModal({ 'name-field': 'Alice' });
 
     expect(submittedName).toBe('Alice');
 
-    const closeId = findButtonId(adapter.lastRender!, 'Close');
-    adapter.enqueueComponent(click(closeId!));
-    await done;
+    await sim.end();
   });
 
   it('menu re-renders after modal submit — render count increments', async () => {
-    function makeMain(session: MenuSessionLike) {
-      return new MenuBuilder(session, 'main')
-        .setEmbeds(() => [])
-        .setButtons(() => [
-          {
-            label: 'Open Modal',
-            style: ButtonStyle.Primary,
-            id: OPEN_MODAL_BTN,
-            opensModal: MODAL_ID,
-          },
-          { label: 'Close', style: ButtonStyle.Danger, action: closeMenu() },
-        ])
-        .setModal(() => [
-          {
-            id: MODAL_ID,
-            builder: buildModal(),
-            onSubmit: async () => {}, // no-op submit
-          },
-        ])
-        .build();
-    }
+    const sim = new MenuHarness({ main: mockMainMenu });
+    await sim.start('main');
+    const rendersBefore = sim.renderCount;
 
-    const { adapter, startSession } = createTestSession({ main: makeMain });
-    const done = startSession('main');
-    await adapter.waitForNextRender();
+    sim.clickModal('Open Modal');
+    await sim.submitModal({});
 
-    const openModalId = findButtonId(adapter.lastRender!, 'Open Modal');
-    const rendersBefore = adapter.renderCount;
+    expect(sim.renderCount).toBe(rendersBefore + 1);
 
-    adapter.enqueueComponent(click(openModalId!));
-    adapter.enqueueModalSubmit(modalSubmit({}));
-    await adapter.waitForNextRender();
-
-    expect(adapter.renderCount).toBe(rendersBefore + 1);
-
-    const closeId = findButtonId(adapter.lastRender!, 'Close');
-    adapter.enqueueComponent(click(closeId!));
-    await done;
+    await sim.end();
   });
 
   it('modal can be submitted multiple times in a loop', async () => {
     const submittedNames: string[] = [];
 
-    function makeMain(session: MenuSessionLike) {
-      return new MenuBuilder(session, 'main')
+    const mockMultiSubmitMenu = (session: MenuSessionLike) =>
+      new MenuBuilder(session, 'main')
         .setEmbeds(() => [])
         .setButtons(() => [
           {
@@ -126,37 +115,31 @@ describe('modal flow (declarative opensModal)', () => {
             id: OPEN_MODAL_BTN,
             opensModal: MODAL_ID,
           },
-          { label: 'Close', style: ButtonStyle.Danger, action: closeMenu() },
         ])
         .setModal(() => [
           {
             id: MODAL_ID,
             builder: buildModal(),
             onSubmit: async (_ctx, fields) => {
-              submittedNames.push((fields.getField('name-field') as { value: string }).value);
+              submittedNames.push(
+                fields.getField('name-field', ComponentType.TextInput)
+                  .value,
+              );
             },
           },
         ])
         .build();
-    }
 
-    const { adapter, startSession } = createTestSession({ main: makeMain });
-    const done = startSession('main');
-    await adapter.waitForNextRender();
+    const sim = new MenuHarness({ main: mockMultiSubmitMenu });
+    await sim.start('main');
 
-    const openModalId = findButtonId(adapter.lastRender!, 'Open Modal');
-
-    // Submit the modal twice
     for (const name of ['Alice', 'Bob']) {
-      adapter.enqueueComponent(click(openModalId!));
-      adapter.enqueueModalSubmit(modalSubmit({ 'name-field': name }));
-      await adapter.waitForNextRender();
+      sim.clickModal('Open Modal');
+      await sim.submitModal({ 'name-field': name });
     }
 
     expect(submittedNames).toEqual(['Alice', 'Bob']);
 
-    const closeId = findButtonId(adapter.lastRender!, 'Close');
-    adapter.enqueueComponent(click(closeId!));
-    await done;
+    await sim.end();
   });
 });
