@@ -237,6 +237,12 @@ export class MenuSession implements MenuSessionLike {
       if (definition.setup) {
         const ctx = this.buildContext(instance);
         await definition.setup(ctx);
+        this._emitEvent({
+          kind: 'hook',
+          menuId: ctx.menu.name,
+          hookName: 'setup',
+          timestamp: Date.now(),
+        });
       }
       const ctx = this.buildContext(instance);
       await this._emitHook('onEnter', ctx, definition.hooks);
@@ -314,6 +320,12 @@ export class MenuSession implements MenuSessionLike {
     if (definition.setup) {
       const ctx = this.buildContext(instance);
       await definition.setup(ctx);
+      this._emitEvent({
+        kind: 'hook',
+        menuId: ctx.menu.name,
+        hookName: 'setup',
+        timestamp: Date.now(),
+      });
     }
 
     // Fire onEnter
@@ -400,6 +412,12 @@ export class MenuSession implements MenuSessionLike {
     } else if (definition.setup) {
       const ctx = this.buildContext(instance);
       await definition.setup(ctx);
+      this._emitEvent({
+        kind: 'hook',
+        menuId: ctx.menu.name,
+        hookName: 'setup',
+        timestamp: Date.now(),
+      });
     }
 
     // Fire onEnter

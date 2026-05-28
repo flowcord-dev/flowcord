@@ -12,7 +12,11 @@ import type {
 } from '../adapter/types';
 import type { CreateTestSessionOptions } from './createTestSession';
 import { SimulatedAdapter } from './SimulatedAdapter';
-import { mockClient, mockCommandInteraction, mockMessage } from './mocks';
+import {
+  mockClient,
+  mockCommandInteraction,
+  mockMessage,
+} from './mocks';
 
 export type MenuHarnessOptions = CreateTestSessionOptions;
 
@@ -23,9 +27,20 @@ export interface ButtonResult {
   style: ButtonStyle;
 }
 
+export interface RenderRecord {
+  menuId: string;
+  payload: NormalizedRenderPayload;
+}
+
+export interface SelectOption {
+  label: string;
+  value: string;
+}
+
 export interface SelectResult {
   customId: string;
   placeholder?: string;
+  options: SelectOption[];
 }
 
 const BUTTON_COMPONENT_TYPE = 2;
@@ -126,7 +141,7 @@ export class MenuHarness {
     if (!render) return null;
     const target = label.toLowerCase();
     return (
-      this._collectButtons(render).find(
+      this._collectButtons(render.payload).find(
         (btn) => btn.label?.toLowerCase() === target,
       ) ?? null
     );
@@ -146,7 +161,7 @@ export class MenuHarness {
     const render = this.lastRender;
     if (!render) return null;
     return (
-      this._collectButtons(render).find((btn) => {
+      this._collectButtons(render.payload).find((btn) => {
         const parsed = ComponentIdManager.parse(btn.customId);
         return parsed?.componentId === componentId;
       }) ?? null
@@ -158,9 +173,10 @@ export class MenuHarness {
   getSelect(): SelectResult;
   getSelect(componentId: string): SelectResult;
   getSelect(componentId?: string): SelectResult {
-    const result = componentId === undefined
-      ? this.querySelect()
-      : this.querySelect(componentId);
+    const result =
+      componentId === undefined
+        ? this.querySelect()
+        : this.querySelect(componentId);
     if (!result) {
       throw new Error(
         componentId === undefined
@@ -176,7 +192,7 @@ export class MenuHarness {
   querySelect(componentId?: string): SelectResult | null {
     const render = this.lastRender;
     if (!render) return null;
-    const selects = this._collectSelects(render);
+    const selects = this._collectSelects(render.payload);
 
     if (componentId !== undefined) {
       return (
@@ -199,12 +215,16 @@ export class MenuHarness {
   // --- Interactions ---
 
   async click(target: string | ButtonResult): Promise<void> {
-    const btn = typeof target === 'string' ? this.getButton(target) : target;
+    const btn =
+      typeof target === 'string' ? this.getButton(target) : target;
     this.adapter.enqueueComponent(this._buildClick(btn.customId));
     await this.adapter.waitForNextRender();
   }
 
-  async select(target: SelectResult, values: string[]): Promise<void> {
+  async select(
+    target: SelectResult,
+    values: string[],
+  ): Promise<void> {
     this.adapter.enqueueComponent(
       this._buildSelect(target.customId, values),
     );
@@ -221,7 +241,8 @@ export class MenuHarness {
   }
 
   clickModal(target: string | ButtonResult): void {
-    const btn = typeof target === 'string' ? this.getButton(target) : target;
+    const btn =
+      typeof target === 'string' ? this.getButton(target) : target;
     this.adapter.enqueueComponent(this._buildClick(btn.customId));
     // Intentionally no await — showModal does not produce a render.
   }
@@ -254,33 +275,27 @@ export class MenuHarness {
   get currentMenu(): string {
     const render = this.lastRender;
     if (!render) {
-      throw new Error('currentMenu: no render available — call start() first');
-    }
-    const customId = this._extractAnyCustomId(render);
-    if (!customId) {
       throw new Error(
-        'currentMenu: no namespaced customId found in current render',
+        'currentMenu: no render available — call start() first',
       );
     }
-    const parsed = ComponentIdManager.parse(customId);
-    if (!parsed) {
-      throw new Error(`currentMenu: failed to parse customId "${customId}"`);
-    }
-    return parsed.menuId;
+    return render.menuId;
   }
 
   getEmbed(index = 0): APIEmbed {
     const result = this.queryEmbed(index);
     if (result === null) {
-      throw new Error(`getEmbed: no embed at index ${index} in current render`);
+      throw new Error(
+        `getEmbed: no embed at index ${index} in current render`,
+      );
     }
     return result;
   }
 
   queryEmbed(index = 0): APIEmbed | null {
     const render = this.lastRender;
-    if (!render?.embeds) return null;
-    return render.embeds[index] ?? null;
+    if (!render?.payload.embeds) return null;
+    return render.payload.embeds[index] ?? null;
   }
 
   hasText(text: string): boolean {
@@ -294,15 +309,76 @@ export class MenuHarness {
     const fragments = this._collectTextFragments();
     if (typeof pattern === 'string') {
       const lower = pattern.toLowerCase();
-      return fragments.filter((frag) => frag.toLowerCase().includes(lower));
+      return fragments.filter((frag) =>
+        frag.toLowerCase().includes(lower),
+      );
     }
     return fragments.filter((frag) => pattern.test(frag));
   }
 
+  // --- Event log accessors ---
+
+  get navigationHistory(): Array<{
+    from: string | null;
+    to: string;
+  }> {
+    return this.eventLog.filter('navigation').map((evt) => ({
+      from: evt.from,
+      to: evt.to,
+    }));
+  }
+
+  get hookHistory(): Array<{ menuId: string; hookName: string }> {
+    return this.eventLog.filter('hook').map((evt) => ({
+      menuId: evt.menuId,
+      hookName: evt.hookName,
+    }));
+  }
+
+  get actionHistory(): Array<{
+    menuId: string;
+    componentId: string;
+  }> {
+    return this.eventLog.filter('action').map((evt) => ({
+      menuId: evt.menuId,
+      componentId: evt.componentId,
+    }));
+  }
+
+  get lastAction(): { menuId: string; componentId: string } | null {
+    const evt = this.eventLog.findLast('action');
+    if (!evt) return null;
+    return { menuId: evt.menuId, componentId: evt.componentId };
+  }
+
+  get modalHistory(): Array<{
+    kind: 'shown' | 'submit';
+    menuId: string;
+  }> {
+    const shown = this.eventLog.filter('modal:shown').map((evt) => ({
+      kind: 'shown' as const,
+      menuId: evt.menuId,
+      timestamp: evt.timestamp,
+    }));
+    const submitted = this.eventLog
+      .filter('modal:submit')
+      .map((evt) => ({
+        kind: 'submit' as const,
+        menuId: evt.menuId,
+        timestamp: evt.timestamp,
+      }));
+    return [...shown, ...submitted]
+      .sort((aEntry, bEntry) => aEntry.timestamp - bEntry.timestamp)
+      .map(({ kind, menuId }) => ({ kind, menuId }));
+  }
+
   // --- Render history ---
 
-  get renders(): NormalizedRenderPayload[] {
-    return this.adapter.renders;
+  get renders(): RenderRecord[] {
+    return this.eventLog.filter('render').map((evt) => ({
+      menuId: evt.menuId,
+      payload: evt.payload,
+    }));
   }
 
   get terminals(): NormalizedTerminalPayload[] {
@@ -313,8 +389,10 @@ export class MenuHarness {
     return this.adapter.renderCount;
   }
 
-  get lastRender(): NormalizedRenderPayload | null {
-    return this.adapter.lastRender;
+  get lastRender(): RenderRecord | null {
+    const evt = this.eventLog.findLast('render');
+    if (!evt) return null;
+    return { menuId: evt.menuId, payload: evt.payload };
   }
 
   waitForRender(): Promise<void> {
@@ -323,18 +401,26 @@ export class MenuHarness {
 
   // --- Private helpers ---
 
-  private _collectButtons(render: NormalizedRenderPayload): ButtonResult[] {
+  private _collectButtons(
+    render: NormalizedRenderPayload,
+  ): ButtonResult[] {
     const results: ButtonResult[] = [];
 
     for (const row of render.components ?? []) {
-      for (const comp of row.components as unknown as Record<string, unknown>[]) {
+      for (const comp of row.components as unknown as Record<
+        string,
+        unknown
+      >[]) {
         const btn = this._buttonFromComp(comp);
         if (btn) results.push(btn);
       }
     }
 
     if (render.layoutComponents) {
-      this._collectButtonsFromLayout(render.layoutComponents, results);
+      this._collectButtonsFromLayout(
+        render.layoutComponents,
+        results,
+      );
     }
 
     return results;
@@ -373,24 +459,35 @@ export class MenuHarness {
 
       for (const key of ['components', 'children', 'items']) {
         if (Array.isArray(cmp[key])) {
-          this._collectButtonsFromLayout(cmp[key] as unknown[], results);
+          this._collectButtonsFromLayout(
+            cmp[key] as unknown[],
+            results,
+          );
         }
       }
     }
   }
 
-  private _collectSelects(render: NormalizedRenderPayload): SelectResult[] {
+  private _collectSelects(
+    render: NormalizedRenderPayload,
+  ): SelectResult[] {
     const results: SelectResult[] = [];
 
     for (const row of render.components ?? []) {
-      for (const comp of row.components as unknown as Record<string, unknown>[]) {
+      for (const comp of row.components as unknown as Record<
+        string,
+        unknown
+      >[]) {
         const sel = this._selectFromComp(comp);
         if (sel) results.push(sel);
       }
     }
 
     if (render.layoutComponents) {
-      this._collectSelectsFromLayout(render.layoutComponents, results);
+      this._collectSelectsFromLayout(
+        render.layoutComponents,
+        results,
+      );
     }
 
     return results;
@@ -407,12 +504,26 @@ export class MenuHarness {
     ) {
       return null;
     }
+    const rawOptions = Array.isArray(comp['options'])
+      ? comp['options']
+      : [];
+    const options: SelectOption[] = rawOptions
+      .filter(
+        (opt): opt is Record<string, unknown> =>
+          typeof opt === 'object' && opt !== null,
+      )
+      .map((opt) => ({
+        label: typeof opt['label'] === 'string' ? opt['label'] : '',
+        value: typeof opt['value'] === 'string' ? opt['value'] : '',
+      }));
+
     return {
       customId: comp['custom_id'],
       placeholder:
         typeof comp['placeholder'] === 'string'
           ? comp['placeholder']
           : undefined,
+      options,
     };
   }
 
@@ -432,52 +543,27 @@ export class MenuHarness {
 
       for (const key of ['components', 'children', 'items']) {
         if (Array.isArray(cmp[key])) {
-          this._collectSelectsFromLayout(cmp[key] as unknown[], results);
+          this._collectSelectsFromLayout(
+            cmp[key] as unknown[],
+            results,
+          );
         }
       }
     }
-  }
-
-  private _extractAnyCustomId(render: NormalizedRenderPayload): string | null {
-    for (const row of render.components ?? []) {
-      for (const comp of row.components as unknown as Record<string, unknown>[]) {
-        if (typeof comp['custom_id'] === 'string') return comp['custom_id'];
-      }
-    }
-
-    if (render.layoutComponents) {
-      return this._findCustomIdInLayout(render.layoutComponents);
-    }
-
-    return null;
-  }
-
-  private _findCustomIdInLayout(components: unknown[]): string | null {
-    for (const comp of components) {
-      if (typeof comp !== 'object' || comp === null) continue;
-      const cmp = comp as Record<string, unknown>;
-
-      if (typeof cmp['custom_id'] === 'string') return cmp['custom_id'];
-
-      for (const key of ['components', 'children', 'items']) {
-        if (Array.isArray(cmp[key])) {
-          const found = this._findCustomIdInLayout(cmp[key] as unknown[]);
-          if (found) return found;
-        }
-      }
-    }
-    return null;
   }
 
   private _collectTextFragments(): string[] {
-    const render = this.lastRender;
-    if (!render) return [];
+    const payload = this.lastRender?.payload;
+    if (!payload) return [];
 
     const fragments: string[] = [];
-    this._collectEmbedText(render, fragments);
+    this._collectEmbedText(payload, fragments);
 
-    if (render.layoutComponents) {
-      this._collectTextFromLayout(render.layoutComponents, fragments);
+    if (payload.layoutComponents) {
+      this._collectTextFromLayout(
+        payload.layoutComponents,
+        fragments,
+      );
     }
 
     return fragments;
@@ -513,17 +599,23 @@ export class MenuHarness {
       if (typeof comp !== 'object' || comp === null) continue;
       const cmp = comp as Record<string, unknown>;
 
-      if (typeof cmp['content'] === 'string') fragments.push(cmp['content']);
+      if (typeof cmp['content'] === 'string')
+        fragments.push(cmp['content']);
 
       for (const key of ['components', 'children', 'items']) {
         if (Array.isArray(cmp[key])) {
-          this._collectTextFromLayout(cmp[key] as unknown[], fragments);
+          this._collectTextFromLayout(
+            cmp[key] as unknown[],
+            fragments,
+          );
         }
       }
     }
   }
 
-  private _buildClick(customId: string): NormalizedComponentInteraction {
+  private _buildClick(
+    customId: string,
+  ): NormalizedComponentInteraction {
     const userId = this._userId;
     const raw = {
       customId,

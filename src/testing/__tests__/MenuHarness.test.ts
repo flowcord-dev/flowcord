@@ -9,13 +9,17 @@ import { MenuHarness } from '../MenuHarness';
 // Menu factories
 // ---------------------------------------------------------------------------
 
-function makeMainMenu(session: MenuSessionLike) {
-  return new MenuBuilder(session, 'main')
+const mockMainMenu = (session: MenuSessionLike) =>
+  new MenuBuilder(session, 'main')
     .setEmbeds(() => [
       new EmbedBuilder()
         .setTitle('Main Menu')
         .setDescription('Welcome to the main menu')
-        .addFields({ name: 'Status', value: 'Active', inline: false }),
+        .addFields({
+          name: 'Status',
+          value: 'Active',
+          inline: false,
+        }),
     ])
     .setButtons(() => [
       {
@@ -31,11 +35,12 @@ function makeMainMenu(session: MenuSessionLike) {
     ])
     .setTrackedInHistory()
     .build();
-}
 
-function makeDetailMenu(session: MenuSessionLike) {
-  return new MenuBuilder(session, 'detail')
-    .setEmbeds(() => [new EmbedBuilder().setDescription('Detail page content')])
+const mockDetailMenu = (session: MenuSessionLike) =>
+  new MenuBuilder(session, 'detail')
+    .setEmbeds(() => [
+      new EmbedBuilder().setDescription('Detail page content'),
+    ])
     .setButtons(() => [
       {
         label: 'Back',
@@ -46,7 +51,6 @@ function makeDetailMenu(session: MenuSessionLike) {
     .setReturnable()
     .setFallbackMenu('main')
     .build();
-}
 
 // ---------------------------------------------------------------------------
 // Unit tests: MenuHarness class behaviour
@@ -55,7 +59,10 @@ function makeDetailMenu(session: MenuSessionLike) {
 describe('MenuHarness', () => {
   describe('start()', () => {
     it('resolves after the first render fires', async () => {
-      const sim = new MenuHarness({ main: makeMainMenu, detail: makeDetailMenu });
+      const sim = new MenuHarness({
+        main: mockMainMenu,
+        detail: mockDetailMenu,
+      });
       await sim.start('main');
       expect(sim.renderCount).toBe(1);
       expect(sim.lastRender).not.toBeNull();
@@ -68,13 +75,18 @@ describe('MenuHarness', () => {
       }) as unknown as CreateMenuDefinitionFn;
 
       const sim = new MenuHarness({ broken: makeBrokenMenu });
-      await expect(sim.start('broken')).rejects.toThrow('factory boom');
+      await expect(sim.start('broken')).rejects.toThrow(
+        'factory boom',
+      );
     });
   });
 
   describe('click(label)', () => {
     it('finds button by label and triggers a new render', async () => {
-      const sim = new MenuHarness({ main: makeMainMenu, detail: makeDetailMenu });
+      const sim = new MenuHarness({
+        main: mockMainMenu,
+        detail: mockDetailMenu,
+      });
       await sim.start('main');
 
       await sim.click('Go to Detail');
@@ -84,7 +96,10 @@ describe('MenuHarness', () => {
     });
 
     it('accepts a ButtonResult from getButton instead of a string', async () => {
-      const sim = new MenuHarness({ main: makeMainMenu, detail: makeDetailMenu });
+      const sim = new MenuHarness({
+        main: mockMainMenu,
+        detail: mockDetailMenu,
+      });
       await sim.start('main');
 
       const btn = sim.getButton('Go to Detail');
@@ -99,7 +114,7 @@ describe('MenuHarness', () => {
 
   describe('getButton()', () => {
     it('throws when label is not found', async () => {
-      const sim = new MenuHarness({ main: makeMainMenu });
+      const sim = new MenuHarness({ main: mockMainMenu });
       await sim.start('main');
 
       expect(() => sim.getButton('Nonexistent Button')).toThrow(
@@ -109,7 +124,7 @@ describe('MenuHarness', () => {
     });
 
     it('is case-insensitive', async () => {
-      const sim = new MenuHarness({ main: makeMainMenu });
+      const sim = new MenuHarness({ main: mockMainMenu });
       await sim.start('main');
       const btn = sim.getButton('go to detail');
       expect(btn.label).toBe('Go to Detail');
@@ -119,7 +134,7 @@ describe('MenuHarness', () => {
 
   describe('queryButton()', () => {
     it('returns null when label is not found', async () => {
-      const sim = new MenuHarness({ main: makeMainMenu });
+      const sim = new MenuHarness({ main: mockMainMenu });
       await sim.start('main');
 
       expect(sim.queryButton('Does Not Exist')).toBeNull();
@@ -127,40 +142,31 @@ describe('MenuHarness', () => {
     });
 
     it('returns the button when found', async () => {
-      const sim = new MenuHarness({ main: makeMainMenu });
+      const sim = new MenuHarness({ main: mockMainMenu });
       await sim.start('main');
 
       const btn = sim.queryButton('Close');
       expect(btn).not.toBeNull();
-      expect(btn!.style).toBe(ButtonStyle.Danger);
+      expect(btn?.style).toBe(ButtonStyle.Danger);
       await sim.end();
     });
   });
 
   describe('getButtonById() / queryButtonById()', () => {
-    it('getButtonById finds by un-namespaced componentId', async () => {
-      const sim = new MenuHarness({ main: makeMainMenu });
-      await sim.start('main');
-
-      // Reserved back button is injected after setTrackedInHistory makes a back possible;
-      // use a menu with setReturnable to get __reserved_back.
-      // Instead verify with the Cancel button from setCancellable.
-      // Use a fresh menu for this specific case.
-      await sim.end();
-    });
-
     it('queryButtonById returns null when id is not found', async () => {
-      const sim = new MenuHarness({ main: makeMainMenu });
+      const sim = new MenuHarness({ main: mockMainMenu });
       await sim.start('main');
 
-      expect(sim.queryButtonById('totally-nonexistent-id')).toBeNull();
+      expect(
+        sim.queryButtonById('totally-nonexistent-id'),
+      ).toBeNull();
       await sim.end();
     });
   });
 
   describe('end()', () => {
     it('terminates the session cleanly (terminal reason = timeout)', async () => {
-      const sim = new MenuHarness({ main: makeMainMenu });
+      const sim = new MenuHarness({ main: mockMainMenu });
       await sim.start('main');
 
       await sim.end();
@@ -170,12 +176,12 @@ describe('MenuHarness', () => {
     });
 
     it('is a no-op when start() was never called', async () => {
-      const sim = new MenuHarness({ main: makeMainMenu });
+      const sim = new MenuHarness({ main: mockMainMenu });
       await expect(sim.end()).resolves.toBeUndefined();
     });
 
     it('works even after session already closed via close button', async () => {
-      const sim = new MenuHarness({ main: makeMainMenu });
+      const sim = new MenuHarness({ main: mockMainMenu });
       await sim.start('main');
       await sim.click('Close');
 
@@ -188,7 +194,7 @@ describe('MenuHarness', () => {
 
   describe('hasText()', () => {
     it('finds text in embed description', async () => {
-      const sim = new MenuHarness({ main: makeMainMenu });
+      const sim = new MenuHarness({ main: mockMainMenu });
       await sim.start('main');
 
       expect(sim.hasText('Welcome to the main menu')).toBe(true);
@@ -196,7 +202,7 @@ describe('MenuHarness', () => {
     });
 
     it('is case-insensitive', async () => {
-      const sim = new MenuHarness({ main: makeMainMenu });
+      const sim = new MenuHarness({ main: mockMainMenu });
       await sim.start('main');
 
       expect(sim.hasText('WELCOME TO THE MAIN MENU')).toBe(true);
@@ -204,7 +210,7 @@ describe('MenuHarness', () => {
     });
 
     it('finds text in embed title', async () => {
-      const sim = new MenuHarness({ main: makeMainMenu });
+      const sim = new MenuHarness({ main: mockMainMenu });
       await sim.start('main');
 
       expect(sim.hasText('Main Menu')).toBe(true);
@@ -212,7 +218,7 @@ describe('MenuHarness', () => {
     });
 
     it('finds text in embed fields', async () => {
-      const sim = new MenuHarness({ main: makeMainMenu });
+      const sim = new MenuHarness({ main: mockMainMenu });
       await sim.start('main');
 
       expect(sim.hasText('Active')).toBe(true);
@@ -220,7 +226,7 @@ describe('MenuHarness', () => {
     });
 
     it('returns false when text is absent', async () => {
-      const sim = new MenuHarness({ main: makeMainMenu });
+      const sim = new MenuHarness({ main: mockMainMenu });
       await sim.start('main');
 
       expect(sim.hasText('absolutely not present xyz')).toBe(false);
@@ -230,7 +236,7 @@ describe('MenuHarness', () => {
 
   describe('findText()', () => {
     it('returns matching fragments for a string pattern', async () => {
-      const sim = new MenuHarness({ main: makeMainMenu });
+      const sim = new MenuHarness({ main: mockMainMenu });
       await sim.start('main');
 
       const results = sim.findText('Main Menu');
@@ -239,7 +245,7 @@ describe('MenuHarness', () => {
     });
 
     it('returns matching fragments for a RegExp', async () => {
-      const sim = new MenuHarness({ main: makeMainMenu });
+      const sim = new MenuHarness({ main: mockMainMenu });
       await sim.start('main');
 
       const results = sim.findText(/main/i);
@@ -248,7 +254,7 @@ describe('MenuHarness', () => {
     });
 
     it('returns empty array when nothing matches', async () => {
-      const sim = new MenuHarness({ main: makeMainMenu });
+      const sim = new MenuHarness({ main: mockMainMenu });
       await sim.start('main');
 
       expect(sim.findText('zzz_no_match_zzz')).toEqual([]);
@@ -258,7 +264,10 @@ describe('MenuHarness', () => {
 
   describe('currentMenu', () => {
     it('returns the active menu name', async () => {
-      const sim = new MenuHarness({ main: makeMainMenu, detail: makeDetailMenu });
+      const sim = new MenuHarness({
+        main: mockMainMenu,
+        detail: mockDetailMenu,
+      });
       await sim.start('main');
 
       expect(sim.currentMenu).toBe('main');
@@ -266,7 +275,10 @@ describe('MenuHarness', () => {
     });
 
     it('updates after navigation', async () => {
-      const sim = new MenuHarness({ main: makeMainMenu, detail: makeDetailMenu });
+      const sim = new MenuHarness({
+        main: mockMainMenu,
+        detail: mockDetailMenu,
+      });
       await sim.start('main');
 
       await sim.click('Go to Detail');
@@ -278,7 +290,7 @@ describe('MenuHarness', () => {
 
   describe('getEmbed() / queryEmbed()', () => {
     it('getEmbed returns embed at index 0 by default', async () => {
-      const sim = new MenuHarness({ main: makeMainMenu });
+      const sim = new MenuHarness({ main: mockMainMenu });
       await sim.start('main');
 
       const embed = sim.getEmbed();
@@ -287,7 +299,7 @@ describe('MenuHarness', () => {
     });
 
     it('queryEmbed returns null when index is out of range', async () => {
-      const sim = new MenuHarness({ main: makeMainMenu });
+      const sim = new MenuHarness({ main: mockMainMenu });
       await sim.start('main');
 
       expect(sim.queryEmbed(99)).toBeNull();
@@ -295,7 +307,7 @@ describe('MenuHarness', () => {
     });
 
     it('getEmbed throws when index is out of range', async () => {
-      const sim = new MenuHarness({ main: makeMainMenu });
+      const sim = new MenuHarness({ main: mockMainMenu });
       await sim.start('main');
 
       expect(() => sim.getEmbed(99)).toThrow('no embed at index 99');
@@ -305,7 +317,10 @@ describe('MenuHarness', () => {
 
   describe('renders / renderCount / lastRender', () => {
     it('renderCount increments with each render', async () => {
-      const sim = new MenuHarness({ main: makeMainMenu, detail: makeDetailMenu });
+      const sim = new MenuHarness({
+        main: mockMainMenu,
+        detail: mockDetailMenu,
+      });
       await sim.start('main');
       expect(sim.renderCount).toBe(1);
 
@@ -315,7 +330,7 @@ describe('MenuHarness', () => {
     });
 
     it('renders array contains all render payloads', async () => {
-      const sim = new MenuHarness({ main: makeMainMenu });
+      const sim = new MenuHarness({ main: mockMainMenu });
       await sim.start('main');
       expect(sim.renders).toHaveLength(1);
       await sim.end();
@@ -324,7 +339,10 @@ describe('MenuHarness', () => {
 
   describe('reserved button shortcuts', () => {
     it('goBack() navigates back using the __reserved_back button', async () => {
-      const sim = new MenuHarness({ main: makeMainMenu, detail: makeDetailMenu });
+      const sim = new MenuHarness({
+        main: mockMainMenu,
+        detail: mockDetailMenu,
+      });
       await sim.start('main');
 
       await sim.click('Go to Detail');

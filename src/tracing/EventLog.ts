@@ -62,6 +62,18 @@ export class EventLog {
     );
   }
 
+  findLast<T extends SessionEvent['kind']>(
+    kind: T,
+  ): Extract<SessionEvent, { kind: T }> | undefined {
+    for (let idx = this._events.length - 1; idx >= 0; idx--) {
+      const evt = this._events[idx];
+      if (evt?.kind === kind) {
+        return evt as Extract<SessionEvent, { kind: T }>;
+      }
+    }
+    return undefined;
+  }
+
   clear(): void {
     this._events.length = 0;
   }
