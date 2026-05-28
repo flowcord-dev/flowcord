@@ -3,6 +3,12 @@ export type {
   CreateTestSessionOptions,
   TestSessionHandle,
 } from './createTestSession';
+export { MenuHarness } from './MenuHarness';
+export type {
+  MenuHarnessOptions,
+  ButtonResult,
+  SelectResult,
+} from './MenuHarness';
 export {
   mockClient,
   mockCommandInteraction,

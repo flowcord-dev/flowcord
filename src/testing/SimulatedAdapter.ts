@@ -97,7 +97,9 @@ class InteractionQueue<T> {
       this._timeoutHandle = null;
     }
     if (this._waitingReject) {
-      this._waitingReject(new SimulatedTimeoutError('Queue cleared'));
+      // Use default message so the session loop's isTimeout check passes
+      // ("message.includes('time')").
+      this._waitingReject(new SimulatedTimeoutError());
     }
     this._waiting = null;
     this._waitingReject = null;
@@ -260,5 +262,17 @@ export class SimulatedAdapter implements FlowCordAdapter {
    */
   enqueueModalSubmit(submission: NormalizedModalSubmission): void {
     this._modalQueue.enqueue(submission);
+  }
+
+  /**
+   * Clear all interaction queues. Any pending dequeue() calls will reject with
+   * SimulatedTimeoutError, causing the session loop to treat this as a timeout
+   * and send a terminal payload. Used by MenuHarness.end() to force-terminate
+   * a session without needing an explicit close button.
+   */
+  clearQueues(): void {
+    this._componentQueue.clear();
+    this._messageQueue.clear();
+    this._modalQueue.clear();
   }
 }
