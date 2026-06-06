@@ -47,6 +47,23 @@ const BUTTON_COMPONENT_TYPE = 2;
 const SELECT_COMPONENT_TYPE_MIN = 3;
 
 export class MenuHarness {
+  // --- Static registry — auto-cleanup via jest.setup.ts afterEach ---
+
+  private static readonly _active = new Set<MenuHarness>();
+
+  /**
+   * End all currently active harness instances. Called automatically by the
+   * global afterEach in jest.setup.ts — no need to call this manually in tests.
+   * Safe to call when no harnesses are active (no-op on empty set).
+   */
+  static async endAll(): Promise<void> {
+    const pending = [...MenuHarness._active];
+    MenuHarness._active.clear();
+    await Promise.all(pending.map((sim) => sim.end()));
+  }
+
+  // --- Instance ---
+
   readonly adapter: SimulatedAdapter;
   readonly eventLog: EventLog;
 
@@ -60,6 +77,7 @@ export class MenuHarness {
     menus: Record<string, CreateMenuDefinitionFn>,
     options: MenuHarnessOptions = {},
   ) {
+    MenuHarness._active.add(this);
     this._options = options;
     this._userId = options.userId ?? 'test-user';
     const safetyTimeout = options.safetyTimeout ?? 5000;
@@ -119,9 +137,13 @@ export class MenuHarness {
   }
 
   async end(): Promise<void> {
+    MenuHarness._active.delete(this);
     if (this._sessionDone === null) return;
     this.adapter.clearQueues();
-    await this._sessionDone;
+    // Swallow rejections — if the session already failed, the test that called
+    // start() is responsible for asserting on the error. Re-throwing here would
+    // cause afterEach cleanup to fail tests that intentionally test error paths.
+    await this._sessionDone.catch(() => {});
   }
 
   // --- Finders: buttons ---

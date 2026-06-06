@@ -113,7 +113,5 @@ describe('mixed interaction menus (buttons + message handler)', () => {
 
     expect(btnClicked).toBe(true);
     expect(msgHandled).toBeNull();
-
-    await sim.end();
   });
 });

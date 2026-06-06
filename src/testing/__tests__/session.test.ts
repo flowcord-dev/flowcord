@@ -202,8 +202,6 @@ describe('session lifecycle', () => {
     await sim.start('main');
 
     expect(sim.hasText('Greeting: hello')).toBe(true);
-
-    await sim.end();
   });
 });
 
@@ -301,8 +299,6 @@ describe('openSubMenu and complete', () => {
       expect.anything(),
       'sub-result',
     );
-
-    await sim.end();
   });
 
   it('complete() returns the session to the parent menu', async () => {
@@ -335,8 +331,6 @@ describe('openSubMenu and complete', () => {
 
     expect(sim.currentMenu).toBe('main');
     expect(sim.queryButton('Open Sub')).not.toBeNull();
-
-    await sim.end();
   });
 });
 
@@ -366,8 +360,6 @@ describe('hardRefresh', () => {
 
     await sim.click('Refresh');
     expect(sim.renders).toHaveLength(2);
-
-    await sim.end();
   });
 });
 

@@ -24,8 +24,6 @@ describe('hook lifecycle', () => {
       'beforeRender',
       'afterRender',
     ]);
-
-    await sim.end();
   });
 
   it('fires onLeave on the departing menu before onEnter on the arriving menu', async () => {
@@ -70,8 +68,6 @@ describe('hook lifecycle', () => {
       'main:onLeave',
       'detail:onEnter',
     ]);
-
-    await sim.end();
   });
 
   it('fires beforeRender and afterRender on every render cycle', async () => {
@@ -111,8 +107,6 @@ describe('hook lifecycle', () => {
       'beforeRender',
       'afterRender',
     ]);
-
-    await sim.end();
   });
 
   it('async hooks are awaited before proceeding', async () => {
@@ -139,8 +133,6 @@ describe('hook lifecycle', () => {
       .map((hook) => hook.hookName);
 
     expect(order).toEqual(['onEnter', 'afterRender']);
-
-    await sim.end();
   });
 
   it('onEnter fires again on goBack() return', async () => {
@@ -185,7 +177,5 @@ describe('hook lifecycle', () => {
       (hook) => hook.hookName === 'onEnter' && hook.menuId === 'main',
     );
     expect(mainEnters).toHaveLength(2);
-
-    await sim.end();
   });
 });

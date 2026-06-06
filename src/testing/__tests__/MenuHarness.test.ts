@@ -66,7 +66,6 @@ describe('MenuHarness', () => {
       await sim.start('main');
       expect(sim.renderCount).toBe(1);
       expect(sim.lastRender).not.toBeNull();
-      await sim.end();
     });
 
     it('rejects when the factory throws', async () => {
@@ -92,7 +91,6 @@ describe('MenuHarness', () => {
       await sim.click('Go to Detail');
 
       expect(sim.renderCount).toBe(2);
-      await sim.end();
     });
 
     it('accepts a ButtonResult from getButton instead of a string', async () => {
@@ -108,7 +106,6 @@ describe('MenuHarness', () => {
 
       await sim.click(btn);
       expect(sim.renderCount).toBe(2);
-      await sim.end();
     });
   });
 
@@ -120,7 +117,6 @@ describe('MenuHarness', () => {
       expect(() => sim.getButton('Nonexistent Button')).toThrow(
         'no button with label "Nonexistent Button"',
       );
-      await sim.end();
     });
 
     it('is case-insensitive', async () => {
@@ -128,7 +124,6 @@ describe('MenuHarness', () => {
       await sim.start('main');
       const btn = sim.getButton('go to detail');
       expect(btn.label).toBe('Go to Detail');
-      await sim.end();
     });
   });
 
@@ -138,7 +133,6 @@ describe('MenuHarness', () => {
       await sim.start('main');
 
       expect(sim.queryButton('Does Not Exist')).toBeNull();
-      await sim.end();
     });
 
     it('returns the button when found', async () => {
@@ -148,7 +142,6 @@ describe('MenuHarness', () => {
       const btn = sim.queryButton('Close');
       expect(btn).not.toBeNull();
       expect(btn?.style).toBe(ButtonStyle.Danger);
-      await sim.end();
     });
   });
 
@@ -160,7 +153,6 @@ describe('MenuHarness', () => {
       expect(
         sim.queryButtonById('totally-nonexistent-id'),
       ).toBeNull();
-      await sim.end();
     });
   });
 
@@ -198,7 +190,6 @@ describe('MenuHarness', () => {
       await sim.start('main');
 
       expect(sim.hasText('Welcome to the main menu')).toBe(true);
-      await sim.end();
     });
 
     it('is case-insensitive', async () => {
@@ -206,7 +197,6 @@ describe('MenuHarness', () => {
       await sim.start('main');
 
       expect(sim.hasText('WELCOME TO THE MAIN MENU')).toBe(true);
-      await sim.end();
     });
 
     it('finds text in embed title', async () => {
@@ -214,7 +204,6 @@ describe('MenuHarness', () => {
       await sim.start('main');
 
       expect(sim.hasText('Main Menu')).toBe(true);
-      await sim.end();
     });
 
     it('finds text in embed fields', async () => {
@@ -222,7 +211,6 @@ describe('MenuHarness', () => {
       await sim.start('main');
 
       expect(sim.hasText('Active')).toBe(true);
-      await sim.end();
     });
 
     it('returns false when text is absent', async () => {
@@ -230,7 +218,6 @@ describe('MenuHarness', () => {
       await sim.start('main');
 
       expect(sim.hasText('absolutely not present xyz')).toBe(false);
-      await sim.end();
     });
   });
 
@@ -241,7 +228,6 @@ describe('MenuHarness', () => {
 
       const results = sim.findText('Main Menu');
       expect(results.length).toBeGreaterThan(0);
-      await sim.end();
     });
 
     it('returns matching fragments for a RegExp', async () => {
@@ -250,7 +236,6 @@ describe('MenuHarness', () => {
 
       const results = sim.findText(/main/i);
       expect(results.length).toBeGreaterThan(0);
-      await sim.end();
     });
 
     it('returns empty array when nothing matches', async () => {
@@ -258,7 +243,6 @@ describe('MenuHarness', () => {
       await sim.start('main');
 
       expect(sim.findText('zzz_no_match_zzz')).toEqual([]);
-      await sim.end();
     });
   });
 
@@ -271,7 +255,6 @@ describe('MenuHarness', () => {
       await sim.start('main');
 
       expect(sim.currentMenu).toBe('main');
-      await sim.end();
     });
 
     it('updates after navigation', async () => {
@@ -284,7 +267,6 @@ describe('MenuHarness', () => {
       await sim.click('Go to Detail');
 
       expect(sim.currentMenu).toBe('detail');
-      await sim.end();
     });
   });
 
@@ -295,7 +277,6 @@ describe('MenuHarness', () => {
 
       const embed = sim.getEmbed();
       expect(embed.title).toBe('Main Menu');
-      await sim.end();
     });
 
     it('queryEmbed returns null when index is out of range', async () => {
@@ -303,7 +284,6 @@ describe('MenuHarness', () => {
       await sim.start('main');
 
       expect(sim.queryEmbed(99)).toBeNull();
-      await sim.end();
     });
 
     it('getEmbed throws when index is out of range', async () => {
@@ -311,7 +291,6 @@ describe('MenuHarness', () => {
       await sim.start('main');
 
       expect(() => sim.getEmbed(99)).toThrow('no embed at index 99');
-      await sim.end();
     });
   });
 
@@ -326,14 +305,12 @@ describe('MenuHarness', () => {
 
       await sim.click('Go to Detail');
       expect(sim.renderCount).toBe(2);
-      await sim.end();
     });
 
     it('renders array contains all render payloads', async () => {
       const sim = new MenuHarness({ main: mockMainMenu });
       await sim.start('main');
       expect(sim.renders).toHaveLength(1);
-      await sim.end();
     });
   });
 
@@ -350,7 +327,6 @@ describe('MenuHarness', () => {
 
       await sim.goBack();
       expect(sim.currentMenu).toBe('main');
-      await sim.end();
     });
   });
 });

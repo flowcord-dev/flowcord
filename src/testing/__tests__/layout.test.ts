@@ -36,8 +36,6 @@ describe('layout mode rendering', () => {
     expect(sim.lastRender!.payload.components).toBeUndefined();
 
     expect(sim.queryButton('Action')).not.toBeNull();
-
-    await sim.end();
   });
 
   it('buttons inside layout action rows are interactive', async () => {
@@ -70,8 +68,6 @@ describe('layout mode rendering', () => {
     await sim.click('Click Me');
 
     expect(clicked).toBe(true);
-
-    await sim.end();
   });
 
   it('layout components include text_display content in the serialized payload', async () => {
@@ -99,8 +95,6 @@ describe('layout mode rendering', () => {
     await sim.start('main');
 
     expect(sim.hasText(TEXT)).toBe(true);
-
-    await sim.end();
   });
 });
 
@@ -161,8 +155,6 @@ describe('layout mode navigation', () => {
     await sim.click('Back');
 
     expect(sim.hasText('Main')).toBe(true);
-
-    await sim.end();
   });
 });
 

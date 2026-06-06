@@ -9,7 +9,11 @@ const mockDetailMenu = (session: MenuSessionLike) =>
   new MenuBuilder(session, 'detail')
     .setEmbeds(() => [])
     .setButtons(() => [
-      { label: 'Back', style: ButtonStyle.Secondary, action: goBack() },
+      {
+        label: 'Back',
+        style: ButtonStyle.Secondary,
+        action: goBack(),
+      },
     ])
     .setReturnable()
     .setFallbackMenu('main')
@@ -23,7 +27,9 @@ describe('menu-local state', () => {
           ctx.state.set('count', 0);
         })
         .setEmbeds((ctx) => [
-          new EmbedBuilder().setDescription(`Count: ${ctx.state.get('count')}`),
+          new EmbedBuilder().setDescription(
+            `Count: ${ctx.state.get('count')}`,
+          ),
         ])
         .setButtons(() => [
           {
@@ -46,8 +52,6 @@ describe('menu-local state', () => {
 
     await sim.click('Increment');
     expect(sim.hasText('Count: 2')).toBe(true);
-
-    await sim.end();
   });
 
   it('menu-local state resets when re-entering a menu without setPreserveStateOnReturn()', async () => {
@@ -57,7 +61,9 @@ describe('menu-local state', () => {
           ctx.state.set('count', 0);
         })
         .setEmbeds((ctx) => [
-          new EmbedBuilder().setDescription(`Count: ${ctx.state.get('count')}`),
+          new EmbedBuilder().setDescription(
+            `Count: ${ctx.state.get('count')}`,
+          ),
         ])
         .setButtons(() => [
           {
@@ -76,7 +82,10 @@ describe('menu-local state', () => {
         .setTrackedInHistory() // tracked but NOT preserveStateOnReturn
         .build();
 
-    const sim = new MenuHarness({ main: mockMainMenu, detail: mockDetailMenu });
+    const sim = new MenuHarness({
+      main: mockMainMenu,
+      detail: mockDetailMenu,
+    });
     await sim.start('main');
 
     expect(sim.hasText('Count: 0')).toBe(true);
@@ -93,8 +102,6 @@ describe('menu-local state', () => {
     await sim.click('Back');
 
     expect(sim.hasText('Count: 0')).toBe(true);
-
-    await sim.end();
   });
 
   it('setPreserveStateOnReturn() keeps menu-local state when going back', async () => {
@@ -104,7 +111,9 @@ describe('menu-local state', () => {
           ctx.state.set('count', 0);
         })
         .setEmbeds((ctx) => [
-          new EmbedBuilder().setDescription(`Count: ${ctx.state.get('count')}`),
+          new EmbedBuilder().setDescription(
+            `Count: ${ctx.state.get('count')}`,
+          ),
         ])
         .setButtons(() => [
           {
@@ -124,7 +133,10 @@ describe('menu-local state', () => {
         .setPreserveStateOnReturn()
         .build();
 
-    const sim = new MenuHarness({ main: mockMainMenu, detail: mockDetailMenu });
+    const sim = new MenuHarness({
+      main: mockMainMenu,
+      detail: mockDetailMenu,
+    });
     await sim.start('main');
 
     expect(sim.hasText('Count: 0')).toBe(true);
@@ -141,8 +153,6 @@ describe('menu-local state', () => {
     await sim.click('Back');
 
     expect(sim.hasText('Count: 5')).toBe(true);
-
-    await sim.end();
   });
 });
 
@@ -167,25 +177,30 @@ describe('session state', () => {
     const mockDetailMenu = (session: MenuSessionLike) =>
       new MenuBuilder(session, 'detail')
         .setEmbeds((ctx) => [
-          new EmbedBuilder().setDescription(`Shared: ${ctx.sessionState.get('shared')}`),
+          new EmbedBuilder().setDescription(
+            `Shared: ${ctx.sessionState.get('shared')}`,
+          ),
         ])
         .build();
 
-    const sim = new MenuHarness({ main: mockMainMenu, detail: mockDetailMenu });
+    const sim = new MenuHarness({
+      main: mockMainMenu,
+      detail: mockDetailMenu,
+    });
     await sim.start('main');
 
     await sim.click('Go to Detail');
 
     expect(sim.hasText('Shared: hello')).toBe(true);
-
-    await sim.end();
   });
 
   it('initialSessionState is available in setup() of the first menu', async () => {
     const mockMainMenu = (session: MenuSessionLike) =>
       new MenuBuilder(session, 'main')
         .setEmbeds((ctx) => [
-          new EmbedBuilder().setDescription(`Role: ${ctx.sessionState.get('role')}`),
+          new EmbedBuilder().setDescription(
+            `Role: ${ctx.sessionState.get('role')}`,
+          ),
         ])
         .build();
 
@@ -196,8 +211,6 @@ describe('session state', () => {
     await sim.start('main');
 
     expect(sim.hasText('Role: admin')).toBe(true);
-
-    await sim.end();
   });
 
   it('sessionState mutations from one menu are visible in subsequent menus', async () => {
@@ -220,17 +233,20 @@ describe('session state', () => {
     const mockDetailMenu = (session: MenuSessionLike) =>
       new MenuBuilder(session, 'detail')
         .setEmbeds((ctx) => [
-          new EmbedBuilder().setDescription(`Step: ${ctx.sessionState.get('step')}`),
+          new EmbedBuilder().setDescription(
+            `Step: ${ctx.sessionState.get('step')}`,
+          ),
         ])
         .build();
 
-    const sim = new MenuHarness({ main: mockMainMenu, detail: mockDetailMenu });
+    const sim = new MenuHarness({
+      main: mockMainMenu,
+      detail: mockDetailMenu,
+    });
     await sim.start('main');
 
     await sim.click('Go to Detail');
 
     expect(sim.hasText('Step: visited-main')).toBe(true);
-
-    await sim.end();
   });
 });

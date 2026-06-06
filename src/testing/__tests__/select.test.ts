@@ -53,8 +53,6 @@ describe('select menu', () => {
     await sim.select(sel, ['a']);
 
     expect(capturedValues).toEqual(['a']);
-
-    await sim.end();
   });
 
   it('menu re-renders after a selection', async () => {
@@ -65,8 +63,6 @@ describe('select menu', () => {
     await sim.select(sim.getSelect(), ['b']);
 
     expect(sim.renderCount).toBe(rendersBefore + 1);
-
-    await sim.end();
   });
 
   it('select can be used multiple times', async () => {
@@ -91,8 +87,6 @@ describe('select menu', () => {
     }
 
     expect(allValues).toEqual([['a'], ['b'], ['a', 'b']]);
-
-    await sim.end();
   });
 
   it('select custom_id is namespaced in the payload', async () => {
@@ -102,8 +96,6 @@ describe('select menu', () => {
     // Framework assigns its own internal ID and namespaces with session prefix.
     // Namespaced format: sessionId:menuId:componentId
     expect(sim.getSelect().customId).toContain(':');
-
-    await sim.end();
   });
 
   it('getSelect exposes the options defined on the builder', async () => {
@@ -114,7 +106,5 @@ describe('select menu', () => {
     expect(options).toHaveLength(2);
     expect(options[0]).toEqual({ label: 'Option A', value: 'a' });
     expect(options[1]).toEqual({ label: 'Option B', value: 'b' });
-
-    await sim.end();
   });
 });

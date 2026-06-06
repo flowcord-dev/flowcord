@@ -85,8 +85,6 @@ describe('modal flow (declarative opensModal)', () => {
     await sim.submitModal({ 'name-field': 'Alice' });
 
     expect(submittedName).toBe('Alice');
-
-    await sim.end();
   });
 
   it('menu re-renders after modal submit — render count increments', async () => {
@@ -98,8 +96,6 @@ describe('modal flow (declarative opensModal)', () => {
     await sim.submitModal({});
 
     expect(sim.renderCount).toBe(rendersBefore + 1);
-
-    await sim.end();
   });
 
   it('modal can be submitted multiple times in a loop', async () => {
@@ -139,7 +135,5 @@ describe('modal flow (declarative opensModal)', () => {
     }
 
     expect(submittedNames).toEqual(['Alice', 'Bob']);
-
-    await sim.end();
   });
 });

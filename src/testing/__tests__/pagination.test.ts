@@ -29,8 +29,6 @@ describe('list pagination', () => {
     expect(capturedPagination!.itemsPerPage).toBe(10);
     expect(capturedPagination!.startIndex).toBe(0);
     expect(capturedPagination!.endIndex).toBe(10); // exclusive upper bound
-
-    await sim.end();
   });
 
   it('clicking next advances to the next page', async () => {
@@ -58,8 +56,6 @@ describe('list pagination', () => {
     expect(paginationHistory[1].currentPage).toBe(1);
     expect(paginationHistory[1].startIndex).toBe(10);
     expect(paginationHistory[1].endIndex).toBe(20); // exclusive upper bound
-
-    await sim.end();
   });
 
   it('clicking previous goes back to the previous page', async () => {
@@ -86,8 +82,6 @@ describe('list pagination', () => {
 
     await sim.prevPage();
     expect(currentPage).toBe(0);
-
-    await sim.end();
   });
 
   it('previous button is disabled on first page', async () => {
@@ -106,8 +100,6 @@ describe('list pagination', () => {
     expect(sim.queryButtonById('__reserved_previous')?.disabled).toBe(
       true,
     );
-
-    await sim.end();
   });
 
   it('next button is disabled on last page', async () => {
@@ -135,7 +127,5 @@ describe('list pagination', () => {
     expect(sim.queryButtonById('__reserved_next')?.disabled).toBe(
       true,
     );
-
-    await sim.end();
   });
 });
