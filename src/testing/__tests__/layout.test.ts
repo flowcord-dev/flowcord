@@ -1,11 +1,13 @@
 import { ButtonStyle } from 'discord.js';
-import { MenuBuilder } from '../../menu/MenuBuilder';
+
 import { goTo, goBack, closeMenu } from '../../action';
 import type { MenuSessionLike } from '../../context/MenuContext';
+import { MenuBuilder } from '../../menu/MenuBuilder';
 import { MenuHarness } from '../MenuHarness';
 
 describe('layout mode rendering', () => {
   it('layout menu payload has mode=layout and layoutComponents', async () => {
+    expect.assertions(6);
     const mockMainMenu = (session: MenuSessionLike) =>
       new MenuBuilder(session, 'main')
         .setLayout(() => [
@@ -27,18 +29,19 @@ describe('layout mode rendering', () => {
     const sim = new MenuHarness({ main: mockMainMenu });
     await sim.start('main');
 
-    expect(sim.lastRender!.payload.mode).toBe('layout');
-    expect(sim.lastRender!.payload.layoutComponents).toBeDefined();
+    expect(sim.lastRender.payload.mode).toBe('layout');
+    expect(sim.lastRender.payload.layoutComponents).toBeDefined();
     expect(
-      Array.isArray(sim.lastRender!.payload.layoutComponents),
+      Array.isArray(sim.lastRender.payload.layoutComponents),
     ).toBe(true);
-    expect(sim.lastRender!.payload.embeds).toBeUndefined();
-    expect(sim.lastRender!.payload.components).toBeUndefined();
+    expect(sim.lastRender.payload.embeds).toBeUndefined();
+    expect(sim.lastRender.payload.components).toBeUndefined();
 
     expect(sim.queryButton('Action')).not.toBeNull();
   });
 
   it('buttons inside layout action rows are interactive', async () => {
+    expect.assertions(2);
     let clicked = false;
 
     const mockMainMenu = (session: MenuSessionLike) =>
@@ -71,6 +74,7 @@ describe('layout mode rendering', () => {
   });
 
   it('layout components include text_display content in the serialized payload', async () => {
+    expect.assertions(1);
     const TEXT = 'Unique layout text content';
 
     const mockMainMenu = (session: MenuSessionLike) =>
@@ -100,6 +104,7 @@ describe('layout mode rendering', () => {
 
 describe('layout mode navigation', () => {
   it('navigates from layout menu to layout menu and back', async () => {
+    expect.assertions(4);
     const mockMainMenu = (session: MenuSessionLike) =>
       new MenuBuilder(session, 'main')
         .setLayout(() => [
@@ -135,7 +140,6 @@ describe('layout mode navigation', () => {
             ],
           },
         ])
-        .setReturnable()
         .setFallbackMenu('main')
         .build();
 
@@ -145,11 +149,11 @@ describe('layout mode navigation', () => {
     });
     await sim.start('main');
 
-    expect(sim.lastRender!.payload.mode).toBe('layout');
+    expect(sim.lastRender.payload.mode).toBe('layout');
 
     await sim.click('Go Detail');
 
-    expect(sim.lastRender!.payload.mode).toBe('layout');
+    expect(sim.lastRender.payload.mode).toBe('layout');
     expect(sim.hasText('Detail')).toBe(true);
 
     await sim.click('Back');
@@ -160,6 +164,7 @@ describe('layout mode navigation', () => {
 
 describe('layout mode — cancel button', () => {
   it('setCancellable() injects cancel reserved button; clicking it closes the session', async () => {
+    expect.assertions(1);
     const mockMainMenu = (session: MenuSessionLike) =>
       new MenuBuilder(session, 'main')
         .setLayout(() => [
@@ -177,10 +182,9 @@ describe('layout mode — cancel button', () => {
   });
 });
 
-// Kept as-is: this test exercises the layout menu close button specifically to
-// verify the terminal reason produced by a regular closeMenu() action.
 describe('layout mode — close button terminal reason', () => {
   it('closeMenu() in a layout menu ends session with reason=closed', async () => {
+    expect.assertions(1);
     const mockMainMenu = (session: MenuSessionLike) =>
       new MenuBuilder(session, 'main')
         .setLayout(() => [

@@ -1,11 +1,13 @@
 import { ButtonStyle } from 'discord.js';
-import { MenuBuilder } from '../../menu/MenuBuilder';
-import { goTo, goBack } from '../../action';
+
+import { goTo } from '../../action';
 import type { MenuSessionLike } from '../../context/MenuContext';
+import { MenuBuilder } from '../../menu/MenuBuilder';
 import { MenuHarness } from '../MenuHarness';
 
 describe('hook lifecycle', () => {
   it('fires setup → onEnter → beforeRender → afterRender on initial render', async () => {
+    expect.assertions(1);
     const mockMainMenu = (session: MenuSessionLike) =>
       new MenuBuilder(session, 'main')
         .setup(() => {})
@@ -27,6 +29,7 @@ describe('hook lifecycle', () => {
   });
 
   it('fires onLeave on the departing menu before onEnter on the arriving menu', async () => {
+    expect.assertions(1);
     const mockMainMenu = (session: MenuSessionLike) =>
       new MenuBuilder(session, 'main')
         .onLeave(() => {})
@@ -58,19 +61,18 @@ describe('hook lifecycle', () => {
 
     const navigationHooks = sim.hookHistory
       .slice(hookCountBeforeNav)
-      .filter(
-        (hook) =>
-          hook.hookName === 'onLeave' || hook.hookName === 'onEnter',
-      )
-      .map((hook) => `${hook.menuId}:${hook.hookName}`);
+      .filter((hook) =>
+        ['onLeave', 'onEnter'].includes(hook.hookName),
+      );
 
-    expect(navigationHooks).toEqual([
-      'main:onLeave',
-      'detail:onEnter',
+    expect(navigationHooks).toStrictEqual([
+      { hookName: 'onLeave', menuId: 'main' },
+      { hookName: 'onEnter', menuId: 'detail' },
     ]);
   });
 
   it('fires beforeRender and afterRender on every render cycle', async () => {
+    expect.assertions(2);
     const mockMainMenu = (session: MenuSessionLike) =>
       new MenuBuilder(session, 'main')
         .beforeRender(() => {})
@@ -110,6 +112,7 @@ describe('hook lifecycle', () => {
   });
 
   it('async hooks are awaited before proceeding', async () => {
+    expect.assertions(1);
     const mockMainMenu = (session: MenuSessionLike) =>
       new MenuBuilder(session, 'main')
         .onEnter(async () => {
@@ -136,6 +139,7 @@ describe('hook lifecycle', () => {
   });
 
   it('onEnter fires again on goBack() return', async () => {
+    expect.assertions(1);
     const mockMainMenu = (session: MenuSessionLike) =>
       new MenuBuilder(session, 'main')
         .onEnter(() => {})
@@ -153,13 +157,6 @@ describe('hook lifecycle', () => {
     const mockDetailMenu = (session: MenuSessionLike) =>
       new MenuBuilder(session, 'detail')
         .setEmbeds(() => [])
-        .setButtons(() => [
-          {
-            label: 'Back',
-            style: ButtonStyle.Secondary,
-            action: goBack(),
-          },
-        ])
         .setReturnable()
         .setFallbackMenu('main')
         .build();

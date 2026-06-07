@@ -1,13 +1,15 @@
 import {
   ButtonStyle,
   ComponentType,
+  EmbedBuilder,
   LabelBuilder,
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
 } from 'discord.js';
-import { MenuBuilder } from '../../menu/MenuBuilder';
+
 import type { MenuSessionLike } from '../../context/MenuContext';
+import { MenuBuilder } from '../../menu/MenuBuilder';
 import { MenuHarness } from '../MenuHarness';
 
 const OPEN_MODAL_BTN = 'open-modal';
@@ -28,34 +30,17 @@ function buildModal(): ModalBuilder {
     );
 }
 
-// Reusable factory for tests that only need the modal button wired up with a no-op submit.
-const mockMainMenu = (session: MenuSessionLike) =>
-  new MenuBuilder(session, 'main')
-    .setEmbeds(() => [])
-    .setButtons(() => [
-      {
-        label: 'Open Modal',
-        style: ButtonStyle.Primary,
-        id: OPEN_MODAL_BTN,
-        opensModal: MODAL_ID,
-      },
-    ])
-    .setModal(() => [
-      {
-        id: MODAL_ID,
-        builder: buildModal(),
-        onSubmit: async () => {},
-      },
-    ])
-    .build();
-
 describe('modal flow (declarative opensModal)', () => {
   it('onSubmit receives field values from the modal submission', async () => {
-    let submittedName: string | null = null;
+    expect.assertions(1);
 
     const mockSubmitMenu = (session: MenuSessionLike) =>
-      new MenuBuilder(session, 'main')
-        .setEmbeds(() => [])
+      new MenuBuilder<{ name: string }>(session, 'main')
+        .setEmbeds((ctx) => [
+          new EmbedBuilder().setDescription(
+            `Name: ${ctx.state.get('name')}`,
+          ),
+        ])
         .setButtons(() => [
           {
             label: 'Open Modal',
@@ -68,11 +53,12 @@ describe('modal flow (declarative opensModal)', () => {
           {
             id: MODAL_ID,
             builder: buildModal(),
-            onSubmit: async (_ctx, fields) => {
-              submittedName = fields.getField(
-                'name-field',
-                ComponentType.TextInput,
-              ).value;
+            onSubmit: async (ctx, fields) => {
+              ctx.state.set(
+                'name',
+                fields.getField('name-field', ComponentType.TextInput)
+                  .value,
+              );
             },
           },
         ])
@@ -84,24 +70,13 @@ describe('modal flow (declarative opensModal)', () => {
     sim.clickModal('Open Modal');
     await sim.submitModal({ 'name-field': 'Alice' });
 
-    expect(submittedName).toBe('Alice');
+    expect(sim.hasText('Name: Alice')).toBe(true);
   });
 
   it('menu re-renders after modal submit — render count increments', async () => {
-    const sim = new MenuHarness({ main: mockMainMenu });
-    await sim.start('main');
-    const rendersBefore = sim.renderCount;
+    expect.assertions(1);
 
-    sim.clickModal('Open Modal');
-    await sim.submitModal({});
-
-    expect(sim.renderCount).toBe(rendersBefore + 1);
-  });
-
-  it('modal can be submitted multiple times in a loop', async () => {
-    const submittedNames: string[] = [];
-
-    const mockMultiSubmitMenu = (session: MenuSessionLike) =>
+    const mockMainMenu = (session: MenuSessionLike) =>
       new MenuBuilder(session, 'main')
         .setEmbeds(() => [])
         .setButtons(() => [
@@ -116,11 +91,50 @@ describe('modal flow (declarative opensModal)', () => {
           {
             id: MODAL_ID,
             builder: buildModal(),
-            onSubmit: async (_ctx, fields) => {
+            onSubmit: async () => {},
+          },
+        ])
+        .build();
+
+    const sim = new MenuHarness({ main: mockMainMenu });
+    await sim.start('main');
+    const rendersBefore = sim.renderCount;
+
+    sim.clickModal('Open Modal');
+    await sim.submitModal({});
+
+    expect(sim.renderCount).toBe(rendersBefore + 1);
+  });
+
+  it('modal can be submitted multiple times in a loop', async () => {
+    expect.assertions(1);
+
+    const mockMultiSubmitMenu = (session: MenuSessionLike) =>
+      new MenuBuilder<{ names: string[] }>(session, 'main')
+        .setEmbeds((ctx) => [
+          new EmbedBuilder().setDescription(
+            `Submitted names: ${ctx.state.get('names')?.join(', ')}`,
+          ),
+        ])
+        .setButtons(() => [
+          {
+            label: 'Open Modal',
+            style: ButtonStyle.Primary,
+            id: OPEN_MODAL_BTN,
+            opensModal: MODAL_ID,
+          },
+        ])
+        .setModal(() => [
+          {
+            id: MODAL_ID,
+            builder: buildModal(),
+            onSubmit: async (ctx, fields) => {
+              const submittedNames = ctx.state.get('names') || [];
               submittedNames.push(
                 fields.getField('name-field', ComponentType.TextInput)
                   .value,
               );
+              ctx.state.set('names', submittedNames);
             },
           },
         ])
@@ -134,6 +148,6 @@ describe('modal flow (declarative opensModal)', () => {
       await sim.submitModal({ 'name-field': name });
     }
 
-    expect(submittedNames).toEqual(['Alice', 'Bob']);
+    expect(sim.hasText('Submitted names: Alice, Bob')).toBe(true);
   });
 });

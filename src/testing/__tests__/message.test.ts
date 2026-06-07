@@ -1,45 +1,52 @@
-import { ButtonStyle } from 'discord.js';
-import { MenuBuilder } from '../../menu/MenuBuilder';
-import { closeMenu } from '../../action';
+import { ButtonStyle, EmbedBuilder } from 'discord.js';
+
 import type { MenuSessionLike } from '../../context/MenuContext';
+import { MenuBuilder } from '../../menu/MenuBuilder';
 import { MenuHarness } from '../MenuHarness';
 
 describe('message-collection menus', () => {
   it('message handler receives the message content', async () => {
-    let captured: string | null = null;
+    expect.assertions(1);
 
     const mockMainMenu = (session: MenuSessionLike) =>
-      new MenuBuilder(session, 'main')
-        .setEmbeds(() => [])
+      new MenuBuilder<{ lastMessage: string }>(session, 'main')
+        .setup((ctx) => {
+          ctx.state.set('lastMessage', '');
+        })
+        .setEmbeds((ctx) => [
+          new EmbedBuilder().setDescription(
+            `Message: ${ctx.state.get('lastMessage')}`,
+          ),
+        ])
         .setMessageHandler(async (ctx, response) => {
-          captured = response;
-          await closeMenu()(ctx);
+          ctx.state.set('lastMessage', response);
         })
         .build();
 
     const sim = new MenuHarness({ main: mockMainMenu });
     await sim.start('main');
 
-    // sendMessage waits for next render; closeMenu() sends a terminal payload
-    // which also wakes up render listeners, so this resolves cleanly.
     await sim.sendMessage('hello world');
 
-    expect(captured).toBe('hello world');
+    expect(sim.hasText('Message: hello world')).toBe(true);
   });
 
   it('message handler is called on each message', async () => {
-    const received: string[] = [];
-    let callCount = 0;
+    expect.assertions(2);
 
     const mockMainMenu = (session: MenuSessionLike) =>
-      new MenuBuilder(session, 'main')
-        .setEmbeds(() => [])
+      new MenuBuilder<{ messages: string[] }>(session, 'main')
+        .setup((ctx) => {
+          ctx.state.set('messages', []);
+        })
+        .setEmbeds((ctx) => [
+          new EmbedBuilder().setDescription(
+            `Messages: ${ctx.state.get('messages').join(', ')}`,
+          ),
+        ])
         .setMessageHandler(async (ctx, response) => {
-          received.push(response);
-          callCount++;
-          if (callCount >= 2) {
-            await closeMenu()(ctx);
-          }
+          const messages = ctx.state.get('messages');
+          ctx.state.set('messages', [...messages, response]);
         })
         .build();
 
@@ -47,71 +54,59 @@ describe('message-collection menus', () => {
     await sim.start('main');
 
     await sim.sendMessage('first');
-    await sim.sendMessage('second');
+    expect(sim.hasText('Messages: first')).toBe(true);
 
-    expect(received).toEqual(['first', 'second']);
+    await sim.sendMessage('second');
+    expect(sim.hasText('Messages: first, second')).toBe(true);
   });
 });
 
 describe('mixed interaction menus (buttons + message handler)', () => {
-  it('message wins the race — handler is called', async () => {
-    let msgHandled: string | null = null;
-    let btnClicked = false;
-
-    const mockMainMenu = (session: MenuSessionLike) =>
-      new MenuBuilder(session, 'main')
-        .setEmbeds(() => [])
-        .setButtons(() => [
-          {
-            label: 'Action',
-            style: ButtonStyle.Primary,
-            action: async () => {
-              btnClicked = true;
-            },
+  const mockMainMenu = (session: MenuSessionLike) =>
+    new MenuBuilder<{ source: string }>(session, 'main')
+      .setup((ctx) => {
+        ctx.state.set('source', 'none');
+      })
+      .setEmbeds((ctx) => [
+        new EmbedBuilder().setDescription(
+          `Source: ${ctx.state.get('source')}`,
+        ),
+      ])
+      .setButtons(() => [
+        {
+          label: 'Action',
+          style: ButtonStyle.Primary,
+          action: async (ctx) => {
+            ctx.state.set('source', 'button');
           },
-        ])
-        .setMessageHandler(async (ctx, response) => {
-          msgHandled = response;
-          await closeMenu()(ctx);
-        })
-        .build();
+        },
+      ])
+      .setMessageHandler(async (ctx, response) => {
+        ctx.state.set('source', `message:${response}`);
+      })
+      .build();
+
+  it('message wins the race — handler is called', async () => {
+    expect.assertions(2);
 
     const sim = new MenuHarness({ main: mockMainMenu });
     await sim.start('main');
 
     await sim.sendMessage('typed text');
 
-    expect(msgHandled).toBe('typed text');
-    expect(btnClicked).toBe(false);
+    expect(sim.hasText('Source: message:typed text')).toBe(true);
+    expect(sim.hasText('Source: button')).toBe(false);
   });
 
   it('button wins the race — action is called, not message handler', async () => {
-    let msgHandled: string | null = null;
-    let btnClicked = false;
-
-    const mockMainMenu = (session: MenuSessionLike) =>
-      new MenuBuilder(session, 'main')
-        .setEmbeds(() => [])
-        .setButtons(() => [
-          {
-            label: 'Action',
-            style: ButtonStyle.Primary,
-            action: async () => {
-              btnClicked = true;
-            },
-          },
-        ])
-        .setMessageHandler(async (_ctx, response) => {
-          msgHandled = response;
-        })
-        .build();
+    expect.assertions(2);
 
     const sim = new MenuHarness({ main: mockMainMenu });
     await sim.start('main');
 
     await sim.click('Action');
 
-    expect(btnClicked).toBe(true);
-    expect(msgHandled).toBeNull();
+    expect(sim.hasText('Source: button')).toBe(true);
+    expect(sim.hasText('Source: message')).toBe(false);
   });
 });

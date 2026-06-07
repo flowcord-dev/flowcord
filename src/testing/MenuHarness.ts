@@ -1,22 +1,23 @@
 import { ButtonStyle } from 'discord.js';
 import type { APIEmbed } from 'discord-api-types/v10';
-import { MenuEngine } from '../engine/MenuEngine';
-import type { CreateMenuDefinitionFn } from '../registry/MenuRegistry';
-import { ComponentIdManager } from '../components/ComponentIdManager';
-import { EventLog } from '../tracing/EventLog';
+
 import type {
   NormalizedComponentInteraction,
   NormalizedModalSubmission,
   NormalizedRenderPayload,
   NormalizedTerminalPayload,
 } from '../adapter/types';
+import { ComponentIdManager } from '../components/ComponentIdManager';
+import { MenuEngine } from '../engine/MenuEngine';
+import type { CreateMenuDefinitionFn } from '../registry/MenuRegistry';
+import { EventLog } from '../tracing/EventLog';
 import type { CreateTestSessionOptions } from './createTestSession';
-import { SimulatedAdapter } from './SimulatedAdapter';
 import {
   mockClient,
   mockCommandInteraction,
   mockMessage,
 } from './mocks';
+import { SimulatedAdapter } from './SimulatedAdapter';
 
 export type MenuHarnessOptions = CreateTestSessionOptions;
 
@@ -111,7 +112,7 @@ export class MenuHarness {
   async start(
     menuName: string,
     options?: Record<string, unknown>,
-  ): Promise<void> {
+  ): Promise<RenderRecord> {
     const session = this._engine.createSession(
       this._interaction,
       this.adapter,
@@ -134,6 +135,8 @@ export class MenuHarness {
       this.adapter.waitForNextRender(),
       this._sessionDone,
     ]);
+
+    return this.lastRender;
   }
 
   async end(): Promise<void> {
@@ -148,7 +151,7 @@ export class MenuHarness {
 
   // --- Finders: buttons ---
 
-  getButton(label: string): ButtonResult {
+  getButton(label: string | RegExp): ButtonResult {
     const result = this.queryButton(label);
     if (!result) {
       throw new Error(
@@ -158,14 +161,15 @@ export class MenuHarness {
     return result;
   }
 
-  queryButton(label: string): ButtonResult | null {
-    const render = this.lastRender;
-    if (!render) return null;
-    const target = label.toLowerCase();
+  queryButton(label: string | RegExp): ButtonResult | null {
+    const matcher =
+      label instanceof RegExp
+        ? (btn: ButtonResult) =>
+            btn.label !== null && label.test(btn.label)
+        : (btn: ButtonResult) => btn.label === label;
     return (
-      this._collectButtons(render.payload).find(
-        (btn) => btn.label?.toLowerCase() === target,
-      ) ?? null
+      this._collectButtons(this.lastRender.payload).find(matcher) ??
+      null
     );
   }
 
@@ -180,10 +184,8 @@ export class MenuHarness {
   }
 
   queryButtonById(componentId: string): ButtonResult | null {
-    const render = this.lastRender;
-    if (!render) return null;
     return (
-      this._collectButtons(render.payload).find((btn) => {
+      this._collectButtons(this.lastRender.payload).find((btn) => {
         const parsed = ComponentIdManager.parse(btn.customId);
         return parsed?.componentId === componentId;
       }) ?? null
@@ -212,9 +214,7 @@ export class MenuHarness {
   querySelect(): SelectResult | null;
   querySelect(componentId: string): SelectResult | null;
   querySelect(componentId?: string): SelectResult | null {
-    const render = this.lastRender;
-    if (!render) return null;
-    const selects = this._collectSelects(render.payload);
+    const selects = this._collectSelects(this.lastRender.payload);
 
     if (componentId !== undefined) {
       return (
@@ -236,9 +236,11 @@ export class MenuHarness {
 
   // --- Interactions ---
 
-  async click(target: string | ButtonResult): Promise<void> {
+  async click(target: string | RegExp | ButtonResult): Promise<void> {
     const btn =
-      typeof target === 'string' ? this.getButton(target) : target;
+      typeof target === 'string' || target instanceof RegExp
+        ? this.getButton(target)
+        : target;
     this.adapter.enqueueComponent(this._buildClick(btn.customId));
     await this.adapter.waitForNextRender();
   }
@@ -247,6 +249,7 @@ export class MenuHarness {
     target: SelectResult,
     values: string[],
   ): Promise<void> {
+    this._assertStarted('select');
     this.adapter.enqueueComponent(
       this._buildSelect(target.customId, values),
     );
@@ -254,6 +257,7 @@ export class MenuHarness {
   }
 
   async sendMessage(content: string): Promise<void> {
+    this._assertStarted('sendMessage');
     this.adapter.enqueueMessage({
       content,
       raw: mockMessage(),
@@ -262,14 +266,17 @@ export class MenuHarness {
     await this.adapter.waitForNextRender();
   }
 
-  clickModal(target: string | ButtonResult): void {
+  clickModal(target: string | RegExp | ButtonResult): void {
     const btn =
-      typeof target === 'string' ? this.getButton(target) : target;
+      typeof target === 'string' || target instanceof RegExp
+        ? this.getButton(target)
+        : target;
     this.adapter.enqueueComponent(this._buildClick(btn.customId));
     // Intentionally no await — showModal does not produce a render.
   }
 
   async submitModal(fields: Record<string, string>): Promise<void> {
+    this._assertStarted('submitModal');
     this.adapter.enqueueModalSubmit(this._buildModalSubmit(fields));
     await this.adapter.waitForNextRender();
   }
@@ -295,13 +302,7 @@ export class MenuHarness {
   // --- Content inspection ---
 
   get currentMenu(): string {
-    const render = this.lastRender;
-    if (!render) {
-      throw new Error(
-        'currentMenu: no render available — call start() first',
-      );
-    }
-    return render.menuId;
+    return this.lastRender.menuId;
   }
 
   getEmbed(index = 0): APIEmbed {
@@ -315,25 +316,23 @@ export class MenuHarness {
   }
 
   queryEmbed(index = 0): APIEmbed | null {
-    const render = this.lastRender;
-    if (!render?.payload.embeds) return null;
-    return render.payload.embeds[index] ?? null;
+    const embeds = this.lastRender.payload.embeds;
+    if (!embeds) return null;
+    return embeds[index] ?? null;
   }
 
-  hasText(text: string): boolean {
-    const lower = text.toLowerCase();
-    return this._collectTextFragments().some((frag) =>
-      frag.toLowerCase().includes(lower),
-    );
+  hasText(text: string | RegExp): boolean {
+    const fragments = this._collectTextFragments();
+    if (text instanceof RegExp) {
+      return fragments.some((frag) => text.test(frag));
+    }
+    return fragments.some((frag) => frag.includes(text));
   }
 
   findText(pattern: string | RegExp): string[] {
     const fragments = this._collectTextFragments();
     if (typeof pattern === 'string') {
-      const lower = pattern.toLowerCase();
-      return fragments.filter((frag) =>
-        frag.toLowerCase().includes(lower),
-      );
+      return fragments.filter((frag) => frag.includes(pattern));
     }
     return fragments.filter((frag) => pattern.test(frag));
   }
@@ -411,9 +410,13 @@ export class MenuHarness {
     return this.adapter.renderCount;
   }
 
-  get lastRender(): RenderRecord | null {
+  get lastRender(): RenderRecord {
     const evt = this.eventLog.findLast('render');
-    if (!evt) return null;
+    if (!evt) {
+      throw new Error(
+        'lastRender: no render available — call start() first',
+      );
+    }
     return { menuId: evt.menuId, payload: evt.payload };
   }
 
@@ -422,6 +425,14 @@ export class MenuHarness {
   }
 
   // --- Private helpers ---
+
+  private _assertStarted(method: string): void {
+    if (this._sessionDone === null) {
+      throw new Error(
+        `${method}: no session active — call start() first`,
+      );
+    }
+  }
 
   private _collectButtons(
     render: NormalizedRenderPayload,
@@ -575,8 +586,7 @@ export class MenuHarness {
   }
 
   private _collectTextFragments(): string[] {
-    const payload = this.lastRender?.payload;
-    if (!payload) return [];
+    const payload = this.lastRender.payload;
 
     const fragments: string[] = [];
     this._collectEmbedText(payload, fragments);

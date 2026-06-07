@@ -1,13 +1,12 @@
 import { EmbedBuilder } from 'discord.js';
-import { MenuBuilder } from '../../menu/MenuBuilder';
+
 import type { MenuSessionLike } from '../../context/MenuContext';
-import type { PaginationState } from '../../types';
+import { MenuBuilder } from '../../menu/MenuBuilder';
 import { MenuHarness } from '../MenuHarness';
 
 describe('list pagination', () => {
   it('ctx.pagination is populated on first render', async () => {
-    let capturedPagination: PaginationState | null = null;
-
+    expect.assertions(3);
     const mockMainMenu = (session: MenuSessionLike) =>
       new MenuBuilder(session, 'main')
         .setListPagination({
@@ -15,25 +14,32 @@ describe('list pagination', () => {
           itemsPerPage: 10,
         })
         .setEmbeds((ctx) => {
-          capturedPagination = ctx.pagination;
-          return [new EmbedBuilder().setDescription('page')];
+          if (!ctx.pagination) return [];
+          return [
+            new EmbedBuilder()
+              .setDescription(
+                `Showing page ${ctx.pagination.currentPage + 1} of ${ctx.pagination.totalPages}`,
+              )
+              .setFields({
+                name: 'Details',
+                value:
+                  `Items: ${ctx.pagination.startIndex + 1}-${ctx.pagination.endIndex}` +
+                  `\nItems per page: ${ctx.pagination.itemsPerPage}`,
+              }),
+          ];
         })
         .build();
 
     const sim = new MenuHarness({ main: mockMainMenu });
     await sim.start('main');
 
-    expect(capturedPagination).not.toBeNull();
-    expect(capturedPagination!.currentPage).toBe(0);
-    expect(capturedPagination!.totalPages).toBe(3); // ceil(25/10)
-    expect(capturedPagination!.itemsPerPage).toBe(10);
-    expect(capturedPagination!.startIndex).toBe(0);
-    expect(capturedPagination!.endIndex).toBe(10); // exclusive upper bound
+    expect(sim.hasText('Showing page 1 of 3')).toBe(true);
+    expect(sim.hasText('Items: 1-10')).toBe(true);
+    expect(sim.hasText('Items per page: 10')).toBe(true);
   });
 
   it('clicking next advances to the next page', async () => {
-    const paginationHistory: PaginationState[] = [];
-
+    expect.assertions(1);
     const mockMainMenu = (session: MenuSessionLike) =>
       new MenuBuilder(session, 'main')
         .setListPagination({
@@ -41,9 +47,14 @@ describe('list pagination', () => {
           itemsPerPage: 10,
         })
         .setEmbeds((ctx) => {
-          if (ctx.pagination)
-            paginationHistory.push({ ...ctx.pagination });
-          return [new EmbedBuilder().setDescription('page')];
+          if (!ctx.pagination) return [];
+          return [
+            new EmbedBuilder().setFooter({
+              text:
+                `Page: ${ctx.pagination.currentPage + 1} - ` +
+                `Items: ${ctx.pagination.startIndex + 1}-${ctx.pagination.endIndex}`,
+            }),
+          ];
         })
         .build();
 
@@ -52,15 +63,11 @@ describe('list pagination', () => {
 
     await sim.nextPage();
 
-    expect(paginationHistory).toHaveLength(2);
-    expect(paginationHistory[1].currentPage).toBe(1);
-    expect(paginationHistory[1].startIndex).toBe(10);
-    expect(paginationHistory[1].endIndex).toBe(20); // exclusive upper bound
+    expect(sim.hasText('Page: 2 - Items: 11-20')).toBe(true);
   });
 
   it('clicking previous goes back to the previous page', async () => {
-    let currentPage = -1;
-
+    expect.assertions(2);
     const mockMainMenu = (session: MenuSessionLike) =>
       new MenuBuilder(session, 'main')
         .setListPagination({
@@ -68,9 +75,12 @@ describe('list pagination', () => {
           itemsPerPage: 10,
         })
         .setEmbeds((ctx) => {
-          if (ctx.pagination)
-            currentPage = ctx.pagination.currentPage;
-          return [new EmbedBuilder().setDescription('page')];
+          if (!ctx.pagination) return [];
+          return [
+            new EmbedBuilder().setDescription(
+              `Current page: ${ctx.pagination.currentPage + 1}`,
+            ),
+          ];
         })
         .build();
 
@@ -78,13 +88,14 @@ describe('list pagination', () => {
     await sim.start('main');
 
     await sim.nextPage();
-    expect(currentPage).toBe(1);
+    expect(sim.hasText('Current page: 2')).toBe(true);
 
     await sim.prevPage();
-    expect(currentPage).toBe(0);
+    expect(sim.hasText('Current page: 1')).toBe(true);
   });
 
   it('previous button is disabled on first page', async () => {
+    expect.assertions(1);
     const mockMainMenu = (session: MenuSessionLike) =>
       new MenuBuilder(session, 'main')
         .setListPagination({
@@ -103,18 +114,22 @@ describe('list pagination', () => {
   });
 
   it('next button is disabled on last page', async () => {
-    let currentPage = 0;
+    expect.assertions(2);
 
     const mockMainMenu = (session: MenuSessionLike) =>
       new MenuBuilder(session, 'main')
         .setListPagination({
+          // 2 pages total
           getTotalQuantityItems: () => 20,
           itemsPerPage: 10,
         })
         .setEmbeds((ctx) => {
-          if (ctx.pagination)
-            currentPage = ctx.pagination.currentPage;
-          return [new EmbedBuilder().setDescription('page')];
+          if (!ctx.pagination) return [];
+          return [
+            new EmbedBuilder().setDescription(
+              `Current page: ${ctx.pagination.currentPage + 1}`,
+            ),
+          ];
         })
         .build();
 
@@ -122,7 +137,7 @@ describe('list pagination', () => {
     await sim.start('main');
 
     await sim.nextPage();
-    expect(currentPage).toBe(1); // last page (total=20, perPage=10 → 2 pages, 0-indexed last = 1)
+    expect(sim.hasText('Current page: 2')).toBe(true);
 
     expect(sim.queryButtonById('__reserved_next')?.disabled).toBe(
       true,

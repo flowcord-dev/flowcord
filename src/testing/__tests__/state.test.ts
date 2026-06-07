@@ -1,26 +1,21 @@
 import { ButtonStyle, EmbedBuilder } from 'discord.js';
-import { MenuBuilder } from '../../menu/MenuBuilder';
-import { goTo, goBack } from '../../action';
+
+import { goTo } from '../../action';
 import type { MenuSessionLike } from '../../context/MenuContext';
+import { MenuBuilder } from '../../menu/MenuBuilder';
 import { MenuHarness } from '../MenuHarness';
 
 // Reusable detail menu: returnable with a Back button and fallback to 'main'.
 const mockDetailMenu = (session: MenuSessionLike) =>
   new MenuBuilder(session, 'detail')
     .setEmbeds(() => [])
-    .setButtons(() => [
-      {
-        label: 'Back',
-        style: ButtonStyle.Secondary,
-        action: goBack(),
-      },
-    ])
     .setReturnable()
     .setFallbackMenu('main')
     .build();
 
 describe('menu-local state', () => {
   it('state is initialized via setup() and persists across re-renders', async () => {
+    expect.assertions(3);
     const mockMainMenu = (session: MenuSessionLike) =>
       new MenuBuilder<{ count: number }>(session, 'main')
         .setup((ctx) => {
@@ -55,6 +50,7 @@ describe('menu-local state', () => {
   });
 
   it('menu-local state resets when re-entering a menu without setPreserveStateOnReturn()', async () => {
+    expect.assertions(3);
     const mockMainMenu = (session: MenuSessionLike) =>
       new MenuBuilder<{ count: number }>(session, 'main')
         .setup((ctx) => {
@@ -105,6 +101,7 @@ describe('menu-local state', () => {
   });
 
   it('setPreserveStateOnReturn() keeps menu-local state when going back', async () => {
+    expect.assertions(3);
     const mockMainMenu = (session: MenuSessionLike) =>
       new MenuBuilder<{ count: number }>(session, 'main')
         .setup((ctx) => {
@@ -158,6 +155,7 @@ describe('menu-local state', () => {
 
 describe('session state', () => {
   it('sessionState is shared across menus within a session', async () => {
+    expect.assertions(1);
     const mockMainMenu = (session: MenuSessionLike) =>
       new MenuBuilder(session, 'main')
         .setup((ctx) => {
@@ -195,6 +193,7 @@ describe('session state', () => {
   });
 
   it('initialSessionState is available in setup() of the first menu', async () => {
+    expect.assertions(1);
     const mockMainMenu = (session: MenuSessionLike) =>
       new MenuBuilder(session, 'main')
         .setEmbeds((ctx) => [
@@ -214,6 +213,7 @@ describe('session state', () => {
   });
 
   it('sessionState mutations from one menu are visible in subsequent menus', async () => {
+    expect.assertions(1);
     const mockMainMenu = (session: MenuSessionLike) =>
       new MenuBuilder(session, 'main')
         .setEmbeds(() => [])

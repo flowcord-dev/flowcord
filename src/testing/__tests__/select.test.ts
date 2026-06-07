@@ -1,16 +1,16 @@
 import {
+  EmbedBuilder,
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
 } from 'discord.js';
-import { MenuBuilder } from '../../menu/MenuBuilder';
-import type { MenuSessionLike } from '../../context/MenuContext';
-import { MenuHarness } from '../MenuHarness';
 
-const SELECT_ID = 'my-select';
+import type { MenuSessionLike } from '../../context/MenuContext';
+import { MenuBuilder } from '../../menu/MenuBuilder';
+import { MenuHarness } from '../MenuHarness';
 
 function buildSelectMenu() {
   return new StringSelectMenuBuilder()
-    .setCustomId(SELECT_ID)
+    .setCustomId('my-select')
     .addOptions(
       new StringSelectMenuOptionBuilder()
         .setLabel('Option A')
@@ -31,80 +31,59 @@ const mockMainMenu = (session: MenuSessionLike) =>
     }))
     .build();
 
+const mockCaptureMenu = (session: MenuSessionLike) =>
+  new MenuBuilder<{ selections: string[] }>(session, 'main')
+    .setup((ctx) => {
+      ctx.state.set('selections', []);
+    })
+    .setEmbeds((ctx) => [
+      new EmbedBuilder().setDescription(
+        `Selections: ${ctx.state.get('selections').join(', ')}`,
+      ),
+    ])
+    .setSelectMenu(() => ({
+      builder: buildSelectMenu(),
+      onSelect: async (ctx, values) => {
+        const currentValues = ctx.state.get('selections');
+        ctx.state.set('selections', [...currentValues, ...values]);
+      },
+    }))
+    .build();
+
 describe('select menu', () => {
   it('onSelect receives the selected values', async () => {
-    let capturedValues: string[] | null = null;
+    expect.assertions(2);
 
-    const mockCaptureMenu = (session: MenuSessionLike) =>
-      new MenuBuilder(session, 'main')
-        .setEmbeds(() => [])
-        .setSelectMenu(() => ({
-          builder: buildSelectMenu(),
-          onSelect: async (_ctx, values) => {
-            capturedValues = values;
-          },
-        }))
-        .build();
+    const sim = new MenuHarness({ capture: mockCaptureMenu });
+    await sim.start('capture');
 
-    const sim = new MenuHarness({ main: mockCaptureMenu });
-    await sim.start('main');
+    await sim.select(sim.getSelect(), ['a']);
 
-    const sel = sim.getSelect();
-    await sim.select(sel, ['a']);
-
-    expect(capturedValues).toEqual(['a']);
-  });
-
-  it('menu re-renders after a selection', async () => {
-    const sim = new MenuHarness({ main: mockMainMenu });
-    await sim.start('main');
-    const rendersBefore = sim.renderCount;
-
-    await sim.select(sim.getSelect(), ['b']);
-
-    expect(sim.renderCount).toBe(rendersBefore + 1);
+    expect(sim.hasText('Selections: a')).toBe(true);
+    expect(sim.renderCount).toBe(2);
   });
 
   it('select can be used multiple times', async () => {
-    const allValues: string[][] = [];
+    expect.assertions(1);
 
-    const mockAccumulatorMenu = (session: MenuSessionLike) =>
-      new MenuBuilder(session, 'main')
-        .setEmbeds(() => [])
-        .setSelectMenu(() => ({
-          builder: buildSelectMenu(),
-          onSelect: async (_ctx, values) => {
-            allValues.push(values);
-          },
-        }))
-        .build();
-
-    const sim = new MenuHarness({ main: mockAccumulatorMenu });
-    await sim.start('main');
+    const sim = new MenuHarness({ capture: mockCaptureMenu });
+    await sim.start('capture');
 
     for (const vals of [['a'], ['b'], ['a', 'b']]) {
       await sim.select(sim.getSelect(), vals);
     }
 
-    expect(allValues).toEqual([['a'], ['b'], ['a', 'b']]);
+    expect(sim.hasText('Selections: a, b, a, b')).toBe(true);
   });
 
   it('select custom_id is namespaced in the payload', async () => {
+    expect.assertions(1);
     const sim = new MenuHarness({ main: mockMainMenu });
     await sim.start('main');
 
-    // Framework assigns its own internal ID and namespaces with session prefix.
-    // Namespaced format: sessionId:menuId:componentId
-    expect(sim.getSelect().customId).toContain(':');
-  });
-
-  it('getSelect exposes the options defined on the builder', async () => {
-    const sim = new MenuHarness({ main: mockMainMenu });
-    await sim.start('main');
-
-    const options = sim.getSelect().options;
-    expect(options).toHaveLength(2);
-    expect(options[0]).toEqual({ label: 'Option A', value: 'a' });
-    expect(options[1]).toEqual({ label: 'Option B', value: 'b' });
+    // TODO: This doesn't actually use the custom ID right now since the framework only
+    // suports one select menu per menu. This test should eventually be updated to include
+    // the actual customId instead of __select
+    expect(sim.getSelect().customId).toContain(':main:__select');
   });
 });

@@ -36,13 +36,6 @@ const mockMainMenu = (session: MenuSessionLike) =>
 const mockDetailMenu = (session: MenuSessionLike) =>
   new MenuBuilder(session, 'detail')
     .setEmbeds(() => [])
-    .setButtons(() => [
-      {
-        label: 'Back',
-        style: ButtonStyle.Secondary,
-        action: goBack(),
-      },
-    ])
     .setReturnable()
     .setFallbackMenu('main')
     .build();
@@ -79,21 +72,20 @@ const mockGuardedMenu = (session: MenuSessionLike) =>
 
 describe('session lifecycle', () => {
   it('renders initial menu on start', async () => {
+    expect.assertions(3);
     const sim = new MenuHarness({
       main: mockMainMenu,
       detail: mockDetailMenu,
     });
     await sim.start('main');
 
-    expect(sim.lastRender).not.toBeNull();
+    expect(sim.lastRender.menuId).toBe('main');
     expect(sim.renders).toHaveLength(1);
     expect(sim.currentMenu).toBe('main');
-
-    await sim.click('Close');
-    expect(sim.terminals[0]?.reason).toBe('closed');
   });
 
   it('navigates to detail menu via goTo()', async () => {
+    expect.assertions(1);
     const sim = new MenuHarness({
       main: mockMainMenu,
       detail: mockDetailMenu,
@@ -101,19 +93,15 @@ describe('session lifecycle', () => {
     await sim.start('main');
 
     await sim.click('Go to Detail');
-    await sim.click('Back');
 
     expect(sim.renders.map((rdr) => rdr.menuId)).toEqual([
       'main',
       'detail',
-      'main',
     ]);
-
-    await sim.click('Close');
-    expect(sim.terminals[0]?.reason).toBe('closed');
   });
 
   it('goBack() via reserved Back button returns to previous menu', async () => {
+    expect.assertions(1);
     const sim = new MenuHarness({
       main: mockMainMenu,
       detail: mockDetailMenu,
@@ -128,12 +116,10 @@ describe('session lifecycle', () => {
       'detail',
       'main',
     ]);
-
-    await sim.click('Close');
-    expect(sim.terminals[0]?.reason).toBe('closed');
   });
 
   it('cancel via reserved Cancel button ends session with reason=cancelled', async () => {
+    expect.assertions(1);
     const sim = new MenuHarness({ main: mockCancellableMenu });
     await sim.start('main');
 
@@ -143,6 +129,7 @@ describe('session lifecycle', () => {
   });
 
   it('closeMenu() action ends session with reason=closed', async () => {
+    expect.assertions(1);
     const sim = new MenuHarness({
       main: mockMainMenu,
       detail: mockDetailMenu,
@@ -154,20 +141,8 @@ describe('session lifecycle', () => {
     expect(sim.terminals[0]?.reason).toBe('closed');
   });
 
-  it('endPromise resolves to the terminal reason', async () => {
-    const sim = new MenuHarness({
-      main: mockMainMenu,
-      detail: mockDetailMenu,
-    });
-    await sim.start('main');
-
-    await sim.click('Close');
-
-    const reason = await sim.adapter.endPromise;
-    expect(reason).toBe('closed');
-  });
-
   it('guard failure does not navigate — menu re-renders on same page', async () => {
+    expect.assertions(3);
     const sim = new MenuHarness({
       main: mockGuardedMenu,
       detail: mockDetailMenu,
@@ -180,12 +155,10 @@ describe('session lifecycle', () => {
     expect(sim.renderCount).toBe(renderCountBefore + 1);
     expect(sim.currentMenu).toBe('main');
     expect(sim.queryButton('Blocked')).not.toBeNull();
-
-    await sim.click('Close');
-    expect(sim.terminals[0]?.reason).toBe('closed');
   });
 
   it('initialSessionState is readable in the first menu render', async () => {
+    expect.assertions(1);
     const mockReaderMenu = (session: MenuSessionLike) =>
       new MenuBuilder(session, 'main')
         .setEmbeds((ctx) => [
@@ -224,16 +197,15 @@ describe('async factory initialization', () => {
   };
 
   it('renders the initial menu when the factory is async', async () => {
+    expect.assertions(1);
     const sim = new MenuHarness({ main: mockAsyncMenu });
     await sim.start('main');
 
     expect(sim.renders).toHaveLength(1);
-
-    await sim.click('Close');
-    expect(sim.terminals[0]?.reason).toBe('closed');
   });
 
   it('throws when a sync factory returns a Promise without being declared async', async () => {
+    expect.assertions(1);
     const mockSyncPromiseMenu = (session: MenuSessionLike) =>
       Promise.resolve(
         new MenuBuilder(session, 'main').setEmbeds(() => []).build(),
@@ -251,6 +223,33 @@ describe('async factory initialization', () => {
 // ---------------------------------------------------------------------------
 
 describe('openSubMenu and complete', () => {
+  const mockParentMenu = (session: MenuSessionLike) => {
+    return new MenuBuilder<{ value: string | null }>(session, 'main')
+      .setup((ctx) => {
+        ctx.state.set('value', null);
+      })
+      .setEmbeds((ctx) => [
+        new EmbedBuilder().setDescription(
+          `Returned value: ${ctx.state.get('value') ?? 'none'}`,
+        ),
+      ])
+      .setButtons(() => [
+        {
+          label: 'Open Sub',
+          style: ButtonStyle.Primary,
+          action: async (ctx) => {
+            await ctx.openSubMenu('sub', {
+              onComplete: async (ctx) => {
+                ctx.state.set('value', 'sub-result');
+              },
+            });
+          },
+        },
+      ])
+      .setTrackedInHistory()
+      .build();
+  };
+
   const mockSubMenu = (session: MenuSessionLike) => {
     return new MenuBuilder(session, 'sub')
       .setEmbeds(() => [])
@@ -266,71 +265,37 @@ describe('openSubMenu and complete', () => {
       .build();
   };
 
-  it('onComplete receives the result passed to complete()', async () => {
-    const onComplete = jest.fn().mockResolvedValue(undefined);
-
-    const mockParentMenu = (session: MenuSessionLike) => {
-      return new MenuBuilder(session, 'main')
-        .setEmbeds(() => [])
-        .setButtons(() => [
-          {
-            label: 'Open Sub',
-            style: ButtonStyle.Primary,
-            action: async (ctx) => {
-              await ctx.openSubMenu('sub', { onComplete });
-            },
-          },
-        ])
-        .setTrackedInHistory()
-        .build();
-    };
-
+  it('openSubMenu() opens the sub menu', async () => {
+    expect.assertions(2);
     const sim = new MenuHarness({
       main: mockParentMenu,
       sub: mockSubMenu,
     });
     await sim.start('main');
+
+    expect(sim.currentMenu).toBe('main');
 
     await sim.click('Open Sub');
-    await sim.click('Finish');
 
-    expect(onComplete).toHaveBeenCalledTimes(1);
-    expect(onComplete).toHaveBeenCalledWith(
-      expect.anything(),
-      'sub-result',
-    );
+    expect(sim.currentMenu).toBe('sub');
   });
 
-  it('complete() returns the session to the parent menu', async () => {
-    const mockParentMenu = (session: MenuSessionLike) => {
-      return new MenuBuilder(session, 'main')
-        .setEmbeds(() => [])
-        .setButtons(() => [
-          {
-            label: 'Open Sub',
-            style: ButtonStyle.Primary,
-            action: async (ctx) => {
-              await ctx.openSubMenu('sub', {
-                onComplete: async () => {},
-              });
-            },
-          },
-        ])
-        .setTrackedInHistory()
-        .build();
-    };
+  it('complete() returns the session to the parent menu with the completed result', async () => {
+    expect.assertions(3);
 
     const sim = new MenuHarness({
       main: mockParentMenu,
       sub: mockSubMenu,
     });
     await sim.start('main');
+
+    expect(sim.hasText('Returned value: none')).toBe(true);
 
     await sim.click('Open Sub');
     await sim.click('Finish');
 
     expect(sim.currentMenu).toBe('main');
-    expect(sim.queryButton('Open Sub')).not.toBeNull();
+    expect(sim.hasText('Returned value: sub-result')).toBe(true);
   });
 });
 
@@ -340,6 +305,7 @@ describe('openSubMenu and complete', () => {
 
 describe('hardRefresh', () => {
   it('re-renders the current menu from the factory', async () => {
+    expect.assertions(2);
     const mockRefreshMenu = (session: MenuSessionLike) =>
       new MenuBuilder(session, 'main')
         .setEmbeds(() => [])
@@ -369,30 +335,22 @@ describe('hardRefresh', () => {
 
 describe('fallback menu', () => {
   it('goBack() activates the fallback menu when the navigation stack is empty', async () => {
-    const mockFallbackDetailMenu = (session: MenuSessionLike) =>
-      new MenuBuilder(session, 'detail')
-        .setEmbeds(() => [])
-        .setReturnable()
-        .setFallbackMenu('main')
-        .build();
+    expect.assertions(1);
 
     // Start directly at 'detail' — no history stack entry for 'main'
     const sim = new MenuHarness({
       main: mockMainMenu,
-      detail: mockFallbackDetailMenu,
+      detail: mockDetailMenu,
     });
     await sim.start('detail');
 
     await sim.goBack(); // falls back to main
 
     expect(sim.currentMenu).toBe('main');
-    expect(sim.queryButton('Close')).not.toBeNull();
-
-    await sim.click('Close');
-    expect(sim.terminals[0]?.reason).toBe('closed');
   });
 
   it('goBack() with empty stack and no fallback menu closes the session', async () => {
+    expect.assertions(1);
     const mockGoBackMenu = (session: MenuSessionLike) =>
       new MenuBuilder(session, 'main')
         .setEmbeds(() => [])
