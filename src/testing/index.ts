@@ -5,8 +5,9 @@ export type {
 } from './createTestSession';
 export { MenuHarness } from './MenuHarness';
 export type {
-  MenuHarnessOptions,
   ButtonResult,
+  MenuHarnessOptions,
+  RenderRecord,
   SelectResult,
 } from './MenuHarness';
 export {

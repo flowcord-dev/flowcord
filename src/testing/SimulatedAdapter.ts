@@ -158,7 +158,7 @@ export class SimulatedAdapter implements FlowCordAdapter {
   }
 
   get lastRender(): NormalizedRenderPayload | null {
-    return this.renders.at(-1) ?? null;
+    return this.renders[this.renders.length - 1] ?? null;
   }
 
   async deferReply(_options: { ephemeral: boolean }): Promise<void> {
