@@ -54,6 +54,7 @@ import {
   injectReservedButtons,
   type ReservedButtonsOptions,
 } from '../components/reservedButtons';
+import { validateLayout } from '../components/ComponentValidator';
 import type { FlowCordAdapter } from '../adapter/FlowCordAdapter';
 import type { NormalizedRenderPayload } from '../adapter/types';
 
@@ -434,6 +435,17 @@ export class MenuRenderer {
     const reservedRow = buildReservedButtonRow(reservedOpts);
     if (reservedRow) {
       components = injectReservedButtons(components, reservedRow);
+    }
+
+    // Validate component limits before hitting Discord's API
+    const validation = validateLayout(
+      components,
+      menuInstance.definition.name,
+    );
+    if (!validation.valid) {
+      throw new Error(
+        `[FlowCord] Component validation failed for menu "${menuInstance.definition.name}": ${validation.errors.join(' ')}`,
+      );
     }
 
     // Serialize full layout tree to plain API objects

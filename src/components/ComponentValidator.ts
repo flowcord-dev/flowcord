@@ -55,124 +55,154 @@ interface CountResult {
   componentCount: number;
   textCharCount: number;
   breakdown: ComponentBreakdown;
+  errors: string[];
 }
 
-function countComponent(config: ComponentConfig): CountResult {
-  const breakdown = emptyBreakdown();
-  let componentCount = 1; // This component itself
-  let textCharCount = 0;
+function mergeResult(acc: CountResult, src: CountResult): void {
+  acc.componentCount += src.componentCount;
+  acc.textCharCount += src.textCharCount;
+  acc.errors.push(...src.errors);
+  const b = acc.breakdown;
+  const s = src.breakdown;
+  b.containers += s.containers;
+  b.textDisplays += s.textDisplays;
+  b.sections += s.sections;
+  b.separators += s.separators;
+  b.actionRows += s.actionRows;
+  b.buttons += s.buttons;
+  b.selects += s.selects;
+  b.thumbnails += s.thumbnails;
+  b.mediaGalleries += s.mediaGalleries;
+  b.files += s.files;
+  b.other += s.other;
+}
+
+type ValidatorFn = (
+  config: ComponentConfig,
+  menuId: string,
+) => string | null;
+
+const STRUCTURAL_VALIDATORS: Partial<
+  Record<ComponentConfig['type'], ValidatorFn[]>
+> = {
+  action_row: [
+    (config, menuId) => {
+      const { children } = config as Extract<
+        ComponentConfig,
+        { type: 'action_row' }
+      >;
+      return children.length === 0
+        ? `Layout for menu "${menuId}" has an action_row with no children. ` +
+            `Action rows must contain at least one component.`
+        : null;
+    },
+  ],
+  media_gallery: [
+    (config, menuId) => {
+      const { items } = config as Extract<
+        ComponentConfig,
+        { type: 'media_gallery' }
+      >;
+      return items.length === 0
+        ? `Layout for menu "${menuId}" has a media_gallery with no items. ` +
+            `Media galleries must contain at least one item.`
+        : null;
+    },
+  ],
+};
+
+function validateComponent(
+  config: ComponentConfig,
+  menuId: string,
+): string[] {
+  return (STRUCTURAL_VALIDATORS[config.type] ?? [])
+    .map((fn) => fn(config, menuId))
+    .filter((err): err is string => err !== null);
+}
+
+function countComponent(
+  config: ComponentConfig,
+  menuId: string,
+): CountResult {
+  const acc: CountResult = {
+    componentCount: 1,
+    textCharCount: 0,
+    breakdown: emptyBreakdown(),
+    errors: validateComponent(config, menuId),
+  };
 
   switch (config.type) {
     case 'container': {
-      breakdown.containers++;
+      acc.breakdown.containers++;
       for (const child of config.children) {
-        const childResult = countComponent(child);
-        componentCount += childResult.componentCount;
-        textCharCount += childResult.textCharCount;
-        breakdown.containers += childResult.breakdown.containers;
-        breakdown.textDisplays += childResult.breakdown.textDisplays;
-        breakdown.sections += childResult.breakdown.sections;
-        breakdown.separators += childResult.breakdown.separators;
-        breakdown.actionRows += childResult.breakdown.actionRows;
-        breakdown.buttons += childResult.breakdown.buttons;
-        breakdown.selects += childResult.breakdown.selects;
-        breakdown.thumbnails += childResult.breakdown.thumbnails;
-        breakdown.mediaGalleries +=
-          childResult.breakdown.mediaGalleries;
-        breakdown.files += childResult.breakdown.files;
-        breakdown.other += childResult.breakdown.other;
+        mergeResult(acc, countComponent(child, menuId));
       }
       break;
     }
 
     case 'text_display':
-      breakdown.textDisplays++;
-      textCharCount += config.content.length;
+      acc.breakdown.textDisplays++;
+      acc.textCharCount += config.content.length;
       break;
 
     case 'section': {
-      breakdown.sections++;
+      acc.breakdown.sections++;
       for (const textItem of config.text) {
         const content =
           typeof textItem === 'string' ? textItem : textItem.content;
-        textCharCount += content.length;
+        acc.textCharCount += content.length;
       }
       if (config.accessory) {
-        const accResult = countComponent(config.accessory);
-        componentCount += accResult.componentCount;
-        breakdown.containers += accResult.breakdown.containers;
-        breakdown.textDisplays += accResult.breakdown.textDisplays;
-        breakdown.sections += accResult.breakdown.sections;
-        breakdown.separators += accResult.breakdown.separators;
-        breakdown.actionRows += accResult.breakdown.actionRows;
-        breakdown.buttons += accResult.breakdown.buttons;
-        breakdown.selects += accResult.breakdown.selects;
-        breakdown.thumbnails += accResult.breakdown.thumbnails;
-        breakdown.mediaGalleries +=
-          accResult.breakdown.mediaGalleries;
-        breakdown.files += accResult.breakdown.files;
-        breakdown.other += accResult.breakdown.other;
+        mergeResult(acc, countComponent(config.accessory, menuId));
       }
       break;
     }
 
     case 'separator':
-      breakdown.separators++;
+      acc.breakdown.separators++;
       break;
 
     case 'action_row': {
-      breakdown.actionRows++;
+      acc.breakdown.actionRows++;
       for (const child of config.children) {
-        const childResult = countComponent(child);
-        componentCount += childResult.componentCount;
-        breakdown.containers += childResult.breakdown.containers;
-        breakdown.textDisplays += childResult.breakdown.textDisplays;
-        breakdown.sections += childResult.breakdown.sections;
-        breakdown.separators += childResult.breakdown.separators;
-        breakdown.actionRows += childResult.breakdown.actionRows;
-        breakdown.buttons += childResult.breakdown.buttons;
-        breakdown.selects += childResult.breakdown.selects;
-        breakdown.thumbnails += childResult.breakdown.thumbnails;
-        breakdown.mediaGalleries +=
-          childResult.breakdown.mediaGalleries;
-        breakdown.files += childResult.breakdown.files;
-        breakdown.other += childResult.breakdown.other;
+        mergeResult(acc, countComponent(child, menuId));
       }
       break;
     }
 
     case 'button':
-      breakdown.buttons++;
+      acc.breakdown.buttons++;
       break;
 
     case 'select':
-      breakdown.selects++;
+      acc.breakdown.selects++;
       break;
 
     case 'thumbnail':
-      breakdown.thumbnails++;
+      acc.breakdown.thumbnails++;
       break;
 
     case 'media_gallery':
-      breakdown.mediaGalleries++;
+      acc.breakdown.mediaGalleries++;
       break;
 
     case 'file':
-      breakdown.files++;
+      acc.breakdown.files++;
       break;
 
     case 'paginated_group': {
-      // Count the current page's worth of buttons (worst case: perPage or all)
-      // At validation time, we count all buttons as the max possible
-      breakdown.other++;
+      // The marker is a framework abstraction replaced by real rows + buttons at
+      // render time — it does not become a Discord component itself.
+      acc.componentCount = 0;
+      acc.breakdown.other++;
       const maxPerPage =
         config.options?.perPage ?? config.buttons.length;
       const pageButtons = Math.min(maxPerPage, config.buttons.length);
       // Each button is a component + action rows to hold them (5 per row)
       const rowsNeeded = Math.ceil(pageButtons / 5);
-      breakdown.actionRows += rowsNeeded;
-      breakdown.buttons += pageButtons;
-      componentCount += rowsNeeded + pageButtons;
+      acc.breakdown.actionRows += rowsNeeded;
+      acc.breakdown.buttons += pageButtons;
+      acc.componentCount += rowsNeeded + pageButtons;
       break;
     }
 
@@ -180,45 +210,35 @@ function countComponent(config: ComponentConfig): CountResult {
       // Will be replaced with an action row at render time
       // Placeholder itself doesn't count — the injected row does
       // Validation accounts for this separately
-      componentCount = 0; // Placeholder is not a real component
+      acc.componentCount = 0; // Placeholder is not a real component
       break;
 
     default:
-      breakdown.other++;
+      acc.breakdown.other++;
       break;
   }
 
-  return { componentCount, textCharCount, breakdown };
+  return acc;
 }
 
 function countComponents(
   configs: ComponentConfig[],
+  menuId: string,
   initialBreakdown?: ComponentBreakdown,
   initialCount?: number,
 ): CountResult {
-  const breakdown = initialBreakdown ?? emptyBreakdown();
-  let componentCount = initialCount ?? 0;
-  let textCharCount = 0;
+  const acc: CountResult = {
+    componentCount: initialCount ?? 0,
+    textCharCount: 0,
+    breakdown: initialBreakdown ?? emptyBreakdown(),
+    errors: [],
+  };
 
   for (const config of configs) {
-    const result = countComponent(config);
-    componentCount += result.componentCount;
-    textCharCount += result.textCharCount;
-    // Merge breakdown
-    breakdown.containers += result.breakdown.containers;
-    breakdown.textDisplays += result.breakdown.textDisplays;
-    breakdown.sections += result.breakdown.sections;
-    breakdown.separators += result.breakdown.separators;
-    breakdown.actionRows += result.breakdown.actionRows;
-    breakdown.buttons += result.breakdown.buttons;
-    breakdown.selects += result.breakdown.selects;
-    breakdown.thumbnails += result.breakdown.thumbnails;
-    breakdown.mediaGalleries += result.breakdown.mediaGalleries;
-    breakdown.files += result.breakdown.files;
-    breakdown.other += result.breakdown.other;
+    mergeResult(acc, countComponent(config, menuId));
   }
 
-  return { componentCount, textCharCount, breakdown };
+  return acc;
 }
 
 function formatBreakdown(breakdown: ComponentBreakdown): string {
@@ -256,8 +276,8 @@ export function validateLayout(
   menuId: string,
   reservedButtonCount = 0,
 ): ValidationResult {
-  const { componentCount, textCharCount, breakdown } =
-    countComponents(components);
+  const { componentCount, textCharCount, breakdown, errors } =
+    countComponents(components, menuId);
 
   // Account for reserved buttons: 1 action row + N buttons
   const reservedComponents =
@@ -268,8 +288,6 @@ export function validateLayout(
     breakdown.actionRows += 1;
     breakdown.buttons += reservedButtonCount;
   }
-
-  const errors: string[] = [];
 
   if (totalComponents > MAX_COMPONENTS) {
     errors.push(

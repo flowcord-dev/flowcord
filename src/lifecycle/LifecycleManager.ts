@@ -43,11 +43,4 @@ export class LifecycleManager {
       await menuHook(ctx);
     }
   }
-
-  /**
-   * Clear all global hooks (useful for testing).
-   */
-  clearGlobalHooks(): void {
-    this._globalHooks.clear();
-  }
 }

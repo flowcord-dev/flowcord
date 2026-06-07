@@ -10,8 +10,11 @@ import type { Action } from '../types/common';
 export class ActionRegistry {
   private readonly _actions = new Map<string, Action>();
 
-  /** Register a named action. */
+  /** Register a named action. Throws if an action with the same name is already registered. */
   register(name: string, action: Action): void {
+    if (this._actions.has(name)) {
+      throw new Error(`Action "${name}" is already registered`);
+    }
     this._actions.set(name, action);
   }
 

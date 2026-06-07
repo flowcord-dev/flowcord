@@ -49,8 +49,8 @@ export class MenuStack {
     this._entries.length = 0;
   }
 
-  /** Get a read-only copy of all entries (oldest first). */
+  /** Get a read-only snapshot of all entries (oldest first). */
   get entries(): ReadonlyArray<MenuStackEntry> {
-    return this._entries;
+    return [...this._entries];
   }
 }

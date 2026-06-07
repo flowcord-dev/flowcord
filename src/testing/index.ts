@@ -3,4 +3,25 @@ export type {
   CreateTestSessionOptions,
   TestSessionHandle,
 } from './createTestSession';
-export { buildStubClient, buildStubInteraction } from './stubs';
+export { MenuHarness } from './MenuHarness';
+export type {
+  ButtonResult,
+  MenuHarnessOptions,
+  RenderRecord,
+  SelectResult,
+} from './MenuHarness';
+export {
+  mockClient,
+  mockCommandInteraction,
+  mockComponentInteraction,
+  mockMenuContext,
+  mockMenuSessionLike,
+  mockMessage,
+  mockModalSubmitInteraction,
+} from './mocks';
+export {
+  SimulatedAdapter,
+  SimulatedTimeoutError,
+} from './SimulatedAdapter';
+export { EventLog } from '../tracing/EventLog';
+export type { SessionEvent } from '../tracing/EventLog';

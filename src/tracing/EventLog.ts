@@ -47,7 +47,7 @@ export class EventLog {
   private readonly _events: SessionEvent[] = [];
 
   get events(): readonly SessionEvent[] {
-    return this._events;
+    return [...this._events];
   }
 
   record(event: SessionEvent): void {
@@ -60,6 +60,18 @@ export class EventLog {
     return this._events.filter(
       (e): e is Extract<SessionEvent, { kind: T }> => e.kind === kind,
     );
+  }
+
+  findLast<T extends SessionEvent['kind']>(
+    kind: T,
+  ): Extract<SessionEvent, { kind: T }> | undefined {
+    for (let idx = this._events.length - 1; idx >= 0; idx--) {
+      const evt = this._events[idx];
+      if (evt?.kind === kind) {
+        return evt as Extract<SessionEvent, { kind: T }>;
+      }
+    }
+    return undefined;
   }
 
   clear(): void {
