@@ -1,235 +1,163 @@
-import { ButtonStyle } from 'discord.js';
-import { MenuBuilder } from '../../menu/MenuBuilder';
-import { goTo, goBack, closeMenu } from '../../action';
-import { createTestSession } from '../createTestSession';
+import { ButtonStyle, EmbedBuilder } from 'discord.js';
+
+import { goTo } from '../../action';
 import type { MenuSessionLike } from '../../context/MenuContext';
-import { click, findButtonId } from './helpers';
+import { MenuBuilder } from '../../menu/MenuBuilder';
+import { MenuHarness } from '../MenuHarness';
+
+// Reusable detail menu: returnable with a Back button and fallback to 'main'.
+const mockDetailMenu = (session: MenuSessionLike) =>
+  new MenuBuilder(session, 'detail')
+    .setEmbeds(() => [])
+    .setReturnable()
+    .setFallbackMenu('main')
+    .build();
 
 describe('menu-local state', () => {
   it('state is initialized via setup() and persists across re-renders', async () => {
-    let capturedCount = -1;
-
-    function makeMain(session: MenuSessionLike) {
-      return new MenuBuilder(session, 'main')
+    expect.assertions(3);
+    const mockMainMenu = (session: MenuSessionLike) =>
+      new MenuBuilder<{ count: number }>(session, 'main')
         .setup((ctx) => {
           ctx.state.set('count', 0);
         })
-        .setEmbeds(() => [])
+        .setEmbeds((ctx) => [
+          new EmbedBuilder().setDescription(
+            `Count: ${ctx.state.get('count')}`,
+          ),
+        ])
         .setButtons(() => [
           {
             label: 'Increment',
             style: ButtonStyle.Primary,
             action: async (ctx) => {
-              const n = (ctx.state.get('count') as number) + 1;
-              ctx.state.set('count', n);
-              capturedCount = n;
+              ctx.state.set('count', ctx.state.get('count') + 1);
             },
-          },
-          {
-            label: 'Close',
-            style: ButtonStyle.Danger,
-            action: closeMenu(),
           },
         ])
         .build();
-    }
 
-    const { adapter, startSession } = createTestSession({
-      main: makeMain,
-    });
-    const done = startSession('main');
-    await adapter.waitForNextRender();
+    const sim = new MenuHarness({ main: mockMainMenu });
+    await sim.start('main');
 
-    const incId = findButtonId(adapter.lastRender!, 'Increment');
-    adapter.enqueueComponent(click(incId!));
-    await adapter.waitForNextRender();
-    expect(capturedCount).toBe(1);
+    expect(sim.hasText('Count: 0')).toBe(true);
 
-    adapter.enqueueComponent(click(incId!));
-    await adapter.waitForNextRender();
-    expect(capturedCount).toBe(2);
+    await sim.click('Increment');
+    expect(sim.hasText('Count: 1')).toBe(true);
 
-    const closeId = findButtonId(adapter.lastRender!, 'Close');
-    adapter.enqueueComponent(click(closeId!));
-    await done;
+    await sim.click('Increment');
+    expect(sim.hasText('Count: 2')).toBe(true);
   });
 
   it('menu-local state resets when re-entering a menu without setPreserveStateOnReturn()', async () => {
-    const capturedCounts: number[] = [];
-
-    function makeMain(session: MenuSessionLike) {
-      return new MenuBuilder(session, 'main')
+    expect.assertions(3);
+    const mockMainMenu = (session: MenuSessionLike) =>
+      new MenuBuilder<{ count: number }>(session, 'main')
         .setup((ctx) => {
           ctx.state.set('count', 0);
         })
-        .onEnter((ctx) => {
-          capturedCounts.push(ctx.state.get('count') as number);
-        })
-        .setEmbeds(() => [])
+        .setEmbeds((ctx) => [
+          new EmbedBuilder().setDescription(
+            `Count: ${ctx.state.get('count')}`,
+          ),
+        ])
         .setButtons(() => [
           {
             label: 'Increment',
             style: ButtonStyle.Primary,
             action: async (ctx) => {
-              ctx.state.set(
-                'count',
-                (ctx.state.get('count') as number) + 1,
-              );
+              ctx.state.set('count', ctx.state.get('count') + 1);
             },
           },
           {
             label: 'Go to Detail',
             style: ButtonStyle.Secondary,
             action: goTo('detail'),
-          },
-          {
-            label: 'Close',
-            style: ButtonStyle.Danger,
-            action: closeMenu(),
           },
         ])
         .setTrackedInHistory() // tracked but NOT preserveStateOnReturn
         .build();
-    }
 
-    function makeDetail(session: MenuSessionLike) {
-      return new MenuBuilder(session, 'detail')
-        .setEmbeds(() => [])
-        .setButtons(() => [
-          {
-            label: 'Back',
-            style: ButtonStyle.Secondary,
-            action: goBack(),
-          },
-        ])
-        .setReturnable()
-        .setFallbackMenu('main')
-        .build();
-    }
-
-    const { adapter, startSession } = createTestSession({
-      main: makeMain,
-      detail: makeDetail,
+    const sim = new MenuHarness({
+      main: mockMainMenu,
+      detail: mockDetailMenu,
     });
-    const done = startSession('main');
-    await adapter.waitForNextRender();
+    await sim.start('main');
+
+    expect(sim.hasText('Count: 0')).toBe(true);
 
     // Increment state to 3
-    const incId = findButtonId(adapter.lastRender!, 'Increment');
-    for (let i = 0; i < 3; i++) {
-      adapter.enqueueComponent(click(incId!));
-      await adapter.waitForNextRender();
+    for (let idx = 0; idx < 3; idx++) {
+      await sim.click('Increment');
     }
 
+    expect(sim.hasText('Count: 3')).toBe(true);
+
     // Navigate away and back — state should reset since no preserveStateOnReturn
-    const goId = findButtonId(adapter.lastRender!, 'Go to Detail');
-    adapter.enqueueComponent(click(goId!));
-    await adapter.waitForNextRender();
+    await sim.click('Go to Detail');
+    await sim.click('Back');
 
-    const backId = findButtonId(adapter.lastRender!, 'Back');
-    adapter.enqueueComponent(click(backId!));
-    await adapter.waitForNextRender();
-
-    // onEnter fires on return — count should be reset to 0 by setup()
-    expect(capturedCounts).toEqual([0, 0]); // first enter + return enter (reset)
-
-    const closeId = findButtonId(adapter.lastRender!, 'Close');
-    adapter.enqueueComponent(click(closeId!));
-    await done;
+    expect(sim.hasText('Count: 0')).toBe(true);
   });
 
   it('setPreserveStateOnReturn() keeps menu-local state when going back', async () => {
-    const capturedCounts: number[] = [];
-
-    function mockMainMenu(session: MenuSessionLike) {
-      return new MenuBuilder(session, 'main')
+    expect.assertions(3);
+    const mockMainMenu = (session: MenuSessionLike) =>
+      new MenuBuilder<{ count: number }>(session, 'main')
         .setup((ctx) => {
           ctx.state.set('count', 0);
         })
-        .onEnter((ctx) => {
-          capturedCounts.push(ctx.state.get('count') as number);
-        })
-        .setEmbeds(() => [])
+        .setEmbeds((ctx) => [
+          new EmbedBuilder().setDescription(
+            `Count: ${ctx.state.get('count')}`,
+          ),
+        ])
         .setButtons(() => [
           {
             label: 'Increment',
             style: ButtonStyle.Primary,
             action: async (ctx) => {
-              ctx.state.set(
-                'count',
-                (ctx.state.get('count') as number) + 1,
-              );
+              ctx.state.set('count', ctx.state.get('count') + 1);
             },
           },
           {
             label: 'Go to Detail',
             style: ButtonStyle.Secondary,
             action: goTo('detail'),
-          },
-          {
-            label: 'Close',
-            style: ButtonStyle.Danger,
-            action: closeMenu(),
           },
         ])
         .setTrackedInHistory()
         .setPreserveStateOnReturn()
         .build();
-    }
 
-    function makeDetail(session: MenuSessionLike) {
-      return new MenuBuilder(session, 'detail')
-        .setEmbeds(() => [])
-        .setButtons(() => [
-          {
-            label: 'Back',
-            style: ButtonStyle.Secondary,
-            action: goBack(),
-          },
-        ])
-        .setReturnable()
-        .setFallbackMenu('main')
-        .build();
-    }
-
-    const { adapter, startSession } = createTestSession({
+    const sim = new MenuHarness({
       main: mockMainMenu,
-      detail: makeDetail,
+      detail: mockDetailMenu,
     });
-    const done = startSession('main');
-    await adapter.waitForNextRender();
+    await sim.start('main');
+
+    expect(sim.hasText('Count: 0')).toBe(true);
 
     // Increment to 5
-    const incId = findButtonId(adapter.lastRender!, 'Increment');
-    for (let i = 0; i < 5; i++) {
-      adapter.enqueueComponent(click(incId!));
-      await adapter.waitForNextRender();
+    for (let idx = 0; idx < 5; idx++) {
+      await sim.click('Increment');
     }
 
+    expect(sim.hasText('Count: 5')).toBe(true);
+
     // Navigate away and back
-    const goId = findButtonId(adapter.lastRender!, 'Go to Detail');
-    adapter.enqueueComponent(click(goId!));
-    await adapter.waitForNextRender();
+    await sim.click('Go to Detail');
+    await sim.click('Back');
 
-    const backId = findButtonId(adapter.lastRender!, 'Back');
-    adapter.enqueueComponent(click(backId!));
-    await adapter.waitForNextRender();
-
-    // State restored to 5 (not reset to 0)
-    expect(capturedCounts).toEqual([0, 5]);
-
-    const closeId = findButtonId(adapter.lastRender!, 'Close');
-    adapter.enqueueComponent(click(closeId!));
-    await done;
+    expect(sim.hasText('Count: 5')).toBe(true);
   });
 });
 
 describe('session state', () => {
   it('sessionState is shared across menus within a session', async () => {
-    let detailSawValue: unknown;
-
-    function mockMainSessionMenu(session: MenuSessionLike) {
-      return new MenuBuilder(session, 'main')
+    expect.assertions(1);
+    const mockMainMenu = (session: MenuSessionLike) =>
+      new MenuBuilder(session, 'main')
         .setup((ctx) => {
           ctx.sessionState.set('shared', 'hello');
         })
@@ -243,80 +171,51 @@ describe('session state', () => {
         ])
         .setTrackedInHistory()
         .build();
-    }
 
-    function makeDetail(session: MenuSessionLike) {
-      return new MenuBuilder(session, 'detail')
-        .setup((ctx) => {
-          detailSawValue = ctx.sessionState.get('shared');
-        })
-        .setEmbeds(() => [])
-        .setButtons(() => [
-          {
-            label: 'Close',
-            style: ButtonStyle.Danger,
-            action: closeMenu(),
-          },
+    const mockDetailMenu = (session: MenuSessionLike) =>
+      new MenuBuilder(session, 'detail')
+        .setEmbeds((ctx) => [
+          new EmbedBuilder().setDescription(
+            `Shared: ${ctx.sessionState.get('shared')}`,
+          ),
         ])
         .build();
-    }
 
-    const { adapter, startSession } = createTestSession({
-      main: mockMainSessionMenu,
-      detail: makeDetail,
+    const sim = new MenuHarness({
+      main: mockMainMenu,
+      detail: mockDetailMenu,
     });
-    const done = startSession('main');
-    await adapter.waitForNextRender();
+    await sim.start('main');
 
-    const goId = findButtonId(adapter.lastRender!, 'Go to Detail');
-    adapter.enqueueComponent(click(goId!));
-    await adapter.waitForNextRender();
+    await sim.click('Go to Detail');
 
-    expect(detailSawValue).toBe('hello');
-
-    const closeId = findButtonId(adapter.lastRender!, 'Close');
-    adapter.enqueueComponent(click(closeId!));
-    await done;
+    expect(sim.hasText('Shared: hello')).toBe(true);
   });
 
   it('initialSessionState is available in setup() of the first menu', async () => {
-    let capturedRole: unknown;
-
-    function makeMain(session: MenuSessionLike) {
-      return new MenuBuilder(session, 'main')
-        .setup((ctx) => {
-          capturedRole = ctx.sessionState.get('role');
-        })
-        .setEmbeds(() => [])
-        .setButtons(() => [
-          {
-            label: 'Close',
-            style: ButtonStyle.Danger,
-            action: closeMenu(),
-          },
+    expect.assertions(1);
+    const mockMainMenu = (session: MenuSessionLike) =>
+      new MenuBuilder(session, 'main')
+        .setEmbeds((ctx) => [
+          new EmbedBuilder().setDescription(
+            `Role: ${ctx.sessionState.get('role')}`,
+          ),
         ])
         .build();
-    }
 
-    const { adapter, startSession } = createTestSession(
-      { main: makeMain },
+    const sim = new MenuHarness(
+      { main: mockMainMenu },
       { initialSessionState: { role: 'admin' } },
     );
-    const done = startSession('main');
-    await adapter.waitForNextRender();
+    await sim.start('main');
 
-    expect(capturedRole).toBe('admin');
-
-    const closeId = findButtonId(adapter.lastRender!, 'Close');
-    adapter.enqueueComponent(click(closeId!));
-    await done;
+    expect(sim.hasText('Role: admin')).toBe(true);
   });
 
   it('sessionState mutations from one menu are visible in subsequent menus', async () => {
-    const values: unknown[] = [];
-
-    function makeMain(session: MenuSessionLike) {
-      return new MenuBuilder(session, 'main')
+    expect.assertions(1);
+    const mockMainMenu = (session: MenuSessionLike) =>
+      new MenuBuilder(session, 'main')
         .setEmbeds(() => [])
         .setButtons(() => [
           {
@@ -330,39 +229,24 @@ describe('session state', () => {
         ])
         .setTrackedInHistory()
         .build();
-    }
 
-    function makeDetail(session: MenuSessionLike) {
-      return new MenuBuilder(session, 'detail')
-        .setup((ctx) => {
-          values.push(ctx.sessionState.get('step'));
-        })
-        .setEmbeds(() => [])
-        .setButtons(() => [
-          {
-            label: 'Close',
-            style: ButtonStyle.Danger,
-            action: closeMenu(),
-          },
+    const mockDetailMenu = (session: MenuSessionLike) =>
+      new MenuBuilder(session, 'detail')
+        .setEmbeds((ctx) => [
+          new EmbedBuilder().setDescription(
+            `Step: ${ctx.sessionState.get('step')}`,
+          ),
         ])
         .build();
-    }
 
-    const { adapter, startSession } = createTestSession({
-      main: makeMain,
-      detail: makeDetail,
+    const sim = new MenuHarness({
+      main: mockMainMenu,
+      detail: mockDetailMenu,
     });
-    const done = startSession('main');
-    await adapter.waitForNextRender();
+    await sim.start('main');
 
-    const goId = findButtonId(adapter.lastRender!, 'Go to Detail');
-    adapter.enqueueComponent(click(goId!));
-    await adapter.waitForNextRender();
+    await sim.click('Go to Detail');
 
-    expect(values).toEqual(['visited-main']);
-
-    const closeId = findButtonId(adapter.lastRender!, 'Close');
-    adapter.enqueueComponent(click(closeId!));
-    await done;
+    expect(sim.hasText('Step: visited-main')).toBe(true);
   });
 });

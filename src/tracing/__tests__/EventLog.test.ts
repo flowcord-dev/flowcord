@@ -148,6 +148,60 @@ describe('EventLog', () => {
     });
   });
 
+  describe('findLast', () => {
+    it('returns the last event matching the given kind', () => {
+      const log = new EventLog();
+
+      log.record({
+        kind: 'action',
+        menuId: 'main',
+        componentId: 'btn-a',
+        timestamp: 1000,
+      });
+      log.record({
+        kind: 'hook',
+        menuId: 'main',
+        hookName: 'beforeRender',
+        timestamp: 1001,
+      });
+      log.record({
+        kind: 'action',
+        menuId: 'main',
+        componentId: 'btn-b',
+        timestamp: 1002,
+      });
+
+      const last = log.findLast('action');
+
+      expect(last).toStrictEqual({
+        kind: 'action',
+        menuId: 'main',
+        componentId: 'btn-b',
+        timestamp: 1002,
+      });
+    });
+
+    it('returns undefined when no events match', () => {
+      const log = new EventLog();
+
+      log.record({
+        kind: 'hook',
+        menuId: 'main',
+        hookName: 'onEnter',
+        timestamp: 1000,
+      });
+
+      expect(log.findLast('action')).toBeUndefined();
+    });
+
+    it('returns undefined on an empty log', () => {
+      const log = new EventLog();
+
+      expect(log.findLast('navigation')).toBeUndefined();
+    });
+
+  });
+
   describe('clear', () => {
     it('removes all recorded events', () => {
       const log = new EventLog();

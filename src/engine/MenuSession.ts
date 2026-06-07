@@ -234,10 +234,7 @@ export class MenuSession implements MenuSessionLike {
       this._currentOptions = options;
       const instance = new MenuInstance(definition, this.id);
       this._currentMenu = instance;
-      if (definition.setup) {
-        const ctx = this.buildContext(instance);
-        await definition.setup(ctx);
-      }
+      await this._runSetup(instance);
       const ctx = this.buildContext(instance);
       await this._emitHook('onEnter', ctx, definition.hooks);
       this._didNavigate = true;
@@ -311,10 +308,7 @@ export class MenuSession implements MenuSessionLike {
     this._currentMenu = instance;
 
     // Run setup if defined
-    if (definition.setup) {
-      const ctx = this.buildContext(instance);
-      await definition.setup(ctx);
-    }
+    await this._runSetup(instance);
 
     // Fire onEnter
     const ctx = this.buildContext(instance);
@@ -397,9 +391,8 @@ export class MenuSession implements MenuSessionLike {
         instance.paginationState = { ...entry.paginationSnapshot };
       }
       // Skip setup — state is already initialized from snapshot
-    } else if (definition.setup) {
-      const ctx = this.buildContext(instance);
-      await definition.setup(ctx);
+    } else {
+      await this._runSetup(instance);
     }
 
     // Fire onEnter
@@ -465,10 +458,7 @@ export class MenuSession implements MenuSessionLike {
     const instance = new MenuInstance(definition, this.id);
     this._currentMenu = instance;
 
-    if (definition.setup) {
-      const ctx = this.buildContext(instance);
-      await definition.setup(ctx);
-    }
+    await this._runSetup(instance);
 
     const ctx = this.buildContext(instance);
     await this._emitHook('onEnter', ctx, definition.hooks);
@@ -565,10 +555,7 @@ export class MenuSession implements MenuSessionLike {
     this._currentMenu = instance;
 
     // Run setup
-    if (definition.setup) {
-      const ctx = this.buildContext(instance);
-      await definition.setup(ctx);
-    }
+    await this._runSetup(instance);
 
     this._didHardRefresh = true;
   }
@@ -642,6 +629,25 @@ export class MenuSession implements MenuSessionLike {
       kind: 'hook',
       menuId: ctx.menu.name,
       hookName: name,
+      timestamp: Date.now(),
+    });
+  }
+
+  /**
+   * Run a menu's setup function (if defined) and emit the corresponding
+   * hook event. Centralised here so every entry path — initialize,
+   * navigateTo, _goBack, _activateFallbackMenu, hardRefresh — records
+   * the event consistently and hookHistory is never missing setup calls.
+   */
+  private async _runSetup(instance: MenuInstance): Promise<void> {
+    const { setup } = instance.definition;
+    if (!setup) return;
+    const ctx = this.buildContext(instance);
+    await setup(ctx);
+    this._emitEvent({
+      kind: 'hook',
+      menuId: ctx.menu.name,
+      hookName: 'setup',
       timestamp: Date.now(),
     });
   }
@@ -763,7 +769,10 @@ export class MenuSession implements MenuSessionLike {
       this._renderer.clearDisplayBehaviors();
       return 'continue';
     }
-    if (outcome === 'timeout') return 'break';
+    if (outcome === 'timeout') {
+      await this._timeout();
+      return 'break';
+    }
     return 'continue'; // Re-render after modal outcome
   }
 

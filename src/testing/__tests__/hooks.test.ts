@@ -1,189 +1,178 @@
 import { ButtonStyle } from 'discord.js';
-import { MenuBuilder } from '../../menu/MenuBuilder';
-import { goTo, goBack, closeMenu } from '../../action';
-import { createTestSession } from '../createTestSession';
-import type { MenuSessionLike } from '../../context/MenuContext';
-import { click, findButtonId } from './helpers';
 
-/**
- * Yield to the microtask queue so that any async work immediately following
- * sendPayload() (e.g. afterRender hooks) has a chance to complete before
- * we assert on the captured log.
- */
-const nextTick = () => new Promise<void>((r) => setImmediate(r));
+import { goTo } from '../../action';
+import type { MenuSessionLike } from '../../context/MenuContext';
+import { MenuBuilder } from '../../menu/MenuBuilder';
+import { MenuHarness } from '../MenuHarness';
 
 describe('hook lifecycle', () => {
   it('fires setup → onEnter → beforeRender → afterRender on initial render', async () => {
-    const order: string[] = [];
-
-    function makeMain(session: MenuSessionLike) {
-      return new MenuBuilder(session, 'main')
-        .setup(() => { order.push('setup'); })
-        .onEnter(() => { order.push('onEnter'); })
-        .beforeRender(() => { order.push('beforeRender'); })
-        .afterRender(() => { order.push('afterRender'); })
+    expect.assertions(1);
+    const mockMainMenu = (session: MenuSessionLike) =>
+      new MenuBuilder(session, 'main')
+        .setup(() => {})
+        .onEnter(() => {})
+        .beforeRender(() => {})
+        .afterRender(() => {})
         .setEmbeds(() => [])
-        .setButtons(() => [
-          { label: 'Close', style: ButtonStyle.Danger, action: closeMenu() },
-        ])
         .build();
-    }
 
-    const { adapter, startSession } = createTestSession({ main: makeMain });
-    const done = startSession('main');
-    await adapter.waitForNextRender();
-    await nextTick(); // afterRender runs after sendPayload resolves
+    const sim = new MenuHarness({ main: mockMainMenu });
+    await sim.start('main');
 
-    expect(order).toEqual(['setup', 'onEnter', 'beforeRender', 'afterRender']);
-
-    const closeId = findButtonId(adapter.lastRender!, 'Close');
-    adapter.enqueueComponent(click(closeId!));
-    await done;
+    expect(sim.hookHistory.map((hook) => hook.hookName)).toEqual([
+      'setup',
+      'onEnter',
+      'beforeRender',
+      'afterRender',
+    ]);
   });
 
   it('fires onLeave on the departing menu before onEnter on the arriving menu', async () => {
-    const order: string[] = [];
-
-    function makeMain(session: MenuSessionLike) {
-      return new MenuBuilder(session, 'main')
-        .onLeave(() => { order.push('main:onLeave'); })
+    expect.assertions(1);
+    const mockMainMenu = (session: MenuSessionLike) =>
+      new MenuBuilder(session, 'main')
+        .onLeave(() => {})
         .setEmbeds(() => [])
         .setButtons(() => [
-          { label: 'Go Detail', style: ButtonStyle.Primary, action: goTo('detail') },
+          {
+            label: 'Go Detail',
+            style: ButtonStyle.Primary,
+            action: goTo('detail'),
+          },
         ])
         .setTrackedInHistory()
         .build();
-    }
 
-    function makeDetail(session: MenuSessionLike) {
-      return new MenuBuilder(session, 'detail')
-        .onEnter(() => { order.push('detail:onEnter'); })
+    const mockDetailMenu = (session: MenuSessionLike) =>
+      new MenuBuilder(session, 'detail')
+        .onEnter(() => {})
         .setEmbeds(() => [])
-        .setButtons(() => [
-          { label: 'Close', style: ButtonStyle.Danger, action: closeMenu() },
-        ])
         .build();
-    }
 
-    const { adapter, startSession } = createTestSession({ main: makeMain, detail: makeDetail });
-    const done = startSession('main');
-    await adapter.waitForNextRender();
+    const sim = new MenuHarness({
+      main: mockMainMenu,
+      detail: mockDetailMenu,
+    });
+    await sim.start('main');
 
-    const goId = findButtonId(adapter.lastRender!, 'Go Detail');
-    adapter.enqueueComponent(click(goId!));
-    await adapter.waitForNextRender();
+    const hookCountBeforeNav = sim.hookHistory.length;
+    await sim.click('Go Detail');
 
-    expect(order).toEqual(['main:onLeave', 'detail:onEnter']);
+    const navigationHooks = sim.hookHistory
+      .slice(hookCountBeforeNav)
+      .filter((hook) =>
+        ['onLeave', 'onEnter'].includes(hook.hookName),
+      );
 
-    const closeId = findButtonId(adapter.lastRender!, 'Close');
-    adapter.enqueueComponent(click(closeId!));
-    await done;
+    expect(navigationHooks).toStrictEqual([
+      { hookName: 'onLeave', menuId: 'main' },
+      { hookName: 'onEnter', menuId: 'detail' },
+    ]);
   });
 
   it('fires beforeRender and afterRender on every render cycle', async () => {
-    const renderHooks: string[] = [];
-
-    function makeMain(session: MenuSessionLike) {
-      return new MenuBuilder(session, 'main')
-        .beforeRender(() => { renderHooks.push('before'); })
-        .afterRender(() => { renderHooks.push('after'); })
+    expect.assertions(2);
+    const mockMainMenu = (session: MenuSessionLike) =>
+      new MenuBuilder(session, 'main')
+        .beforeRender(() => {})
+        .afterRender(() => {})
         .setEmbeds(() => [])
         .setButtons(() => [
-          { label: 'Close', style: ButtonStyle.Danger, action: closeMenu() },
+          {
+            label: 'Noop',
+            style: ButtonStyle.Secondary,
+            action: async () => {},
+          },
         ])
         .build();
-    }
 
-    const { adapter, startSession } = createTestSession({ main: makeMain });
-    const done = startSession('main');
-    await adapter.waitForNextRender();
-    await nextTick(); // afterRender runs after sendPayload resolves
+    const sim = new MenuHarness({ main: mockMainMenu });
+    await sim.start('main');
 
-    // First render
-    expect(renderHooks).toEqual(['before', 'after']);
+    const renderHooks = () =>
+      sim.hookHistory
+        .filter(
+          (hook) =>
+            hook.hookName === 'beforeRender' ||
+            hook.hookName === 'afterRender',
+        )
+        .map((hook) => hook.hookName);
 
-    const closeId = findButtonId(adapter.lastRender!, 'Close');
-    adapter.enqueueComponent(click(closeId!));
-    await done;
+    expect(renderHooks()).toEqual(['beforeRender', 'afterRender']);
+
+    await sim.click('Noop');
+
+    expect(renderHooks()).toEqual([
+      'beforeRender',
+      'afterRender',
+      'beforeRender',
+      'afterRender',
+    ]);
   });
 
   it('async hooks are awaited before proceeding', async () => {
-    const log: string[] = [];
-    let resolved = false;
-
-    function makeMain(session: MenuSessionLike) {
-      return new MenuBuilder(session, 'main')
+    expect.assertions(1);
+    const mockMainMenu = (session: MenuSessionLike) =>
+      new MenuBuilder(session, 'main')
         .onEnter(async () => {
           await new Promise<void>((res) => setTimeout(res, 10));
-          resolved = true;
-          log.push('async:onEnter done');
         })
-        .afterRender(() => { log.push('afterRender'); })
+        .afterRender(() => {})
         .setEmbeds(() => [])
-        .setButtons(() => [
-          { label: 'Close', style: ButtonStyle.Danger, action: closeMenu() },
-        ])
         .build();
-    }
 
-    const { adapter, startSession } = createTestSession({ main: makeMain });
-    const done = startSession('main');
-    await adapter.waitForNextRender();
-    await nextTick(); // afterRender runs after sendPayload resolves
+    const sim = new MenuHarness({ main: mockMainMenu });
+    await sim.start('main');
 
-    // afterRender runs after onEnter completes
-    expect(resolved).toBe(true);
-    expect(log).toEqual(['async:onEnter done', 'afterRender']);
+    // If onEnter were not awaited, afterRender would fire before it completes.
+    // hookHistory ordering proves sequencing was respected.
+    const order = sim.hookHistory
+      .filter(
+        (hook) =>
+          hook.hookName === 'onEnter' ||
+          hook.hookName === 'afterRender',
+      )
+      .map((hook) => hook.hookName);
 
-    const closeId = findButtonId(adapter.lastRender!, 'Close');
-    adapter.enqueueComponent(click(closeId!));
-    await done;
+    expect(order).toEqual(['onEnter', 'afterRender']);
   });
 
   it('onEnter fires again on goBack() return', async () => {
-    const enterLog: string[] = [];
-
-    function makeMain(session: MenuSessionLike) {
-      return new MenuBuilder(session, 'main')
-        .onEnter(() => { enterLog.push('main:enter'); })
+    expect.assertions(1);
+    const mockMainMenu = (session: MenuSessionLike) =>
+      new MenuBuilder(session, 'main')
+        .onEnter(() => {})
         .setEmbeds(() => [])
         .setButtons(() => [
-          { label: 'Go Detail', style: ButtonStyle.Primary, action: goTo('detail') },
-          { label: 'Close', style: ButtonStyle.Danger, action: closeMenu() },
+          {
+            label: 'Go Detail',
+            style: ButtonStyle.Primary,
+            action: goTo('detail'),
+          },
         ])
         .setTrackedInHistory()
         .build();
-    }
 
-    function makeDetail(session: MenuSessionLike) {
-      return new MenuBuilder(session, 'detail')
+    const mockDetailMenu = (session: MenuSessionLike) =>
+      new MenuBuilder(session, 'detail')
         .setEmbeds(() => [])
-        .setButtons(() => [
-          { label: 'Back', style: ButtonStyle.Secondary, action: goBack() },
-        ])
         .setReturnable()
         .setFallbackMenu('main')
         .build();
-    }
 
-    const { adapter, startSession } = createTestSession({ main: makeMain, detail: makeDetail });
-    const done = startSession('main');
-    await adapter.waitForNextRender();
+    const sim = new MenuHarness({
+      main: mockMainMenu,
+      detail: mockDetailMenu,
+    });
+    await sim.start('main');
 
-    // Navigate to detail
-    const goId = findButtonId(adapter.lastRender!, 'Go Detail');
-    adapter.enqueueComponent(click(goId!));
-    await adapter.waitForNextRender();
+    await sim.click('Go Detail');
+    await sim.click('Back');
 
-    // Go back to main — onEnter should fire again
-    const backId = findButtonId(adapter.lastRender!, 'Back');
-    adapter.enqueueComponent(click(backId!));
-    await adapter.waitForNextRender();
-
-    expect(enterLog).toEqual(['main:enter', 'main:enter']);
-
-    const closeId = findButtonId(adapter.lastRender!, 'Close');
-    adapter.enqueueComponent(click(closeId!));
-    await done;
+    const mainEnters = sim.hookHistory.filter(
+      (hook) => hook.hookName === 'onEnter' && hook.menuId === 'main',
+    );
+    expect(mainEnters).toHaveLength(2);
   });
 });

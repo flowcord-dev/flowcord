@@ -1,19 +1,16 @@
 import {
-  ButtonStyle,
+  EmbedBuilder,
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
 } from 'discord.js';
-import { MenuBuilder } from '../../menu/MenuBuilder';
-import { closeMenu } from '../../action';
-import { createTestSession } from '../createTestSession';
-import type { MenuSessionLike } from '../../context/MenuContext';
-import { click, findButtonId, findSelectId, select } from './helpers';
 
-const SELECT_ID = 'my-select';
+import type { MenuSessionLike } from '../../context/MenuContext';
+import { MenuBuilder } from '../../menu/MenuBuilder';
+import { MenuHarness } from '../MenuHarness';
 
 function buildSelectMenu() {
   return new StringSelectMenuBuilder()
-    .setCustomId(SELECT_ID)
+    .setCustomId('my-select')
     .addOptions(
       new StringSelectMenuOptionBuilder()
         .setLabel('Option A')
@@ -24,136 +21,69 @@ function buildSelectMenu() {
     );
 }
 
+// Reusable factory for tests that only need a plain select menu with a no-op handler.
+const mockMainMenu = (session: MenuSessionLike) =>
+  new MenuBuilder(session, 'main')
+    .setEmbeds(() => [])
+    .setSelectMenu(() => ({
+      builder: buildSelectMenu(),
+      onSelect: async () => {},
+    }))
+    .build();
+
+const mockCaptureMenu = (session: MenuSessionLike) =>
+  new MenuBuilder<{ selections: string[] }>(session, 'main')
+    .setup((ctx) => {
+      ctx.state.set('selections', []);
+    })
+    .setEmbeds((ctx) => [
+      new EmbedBuilder().setDescription(
+        `Selections: ${ctx.state.get('selections').join(', ')}`,
+      ),
+    ])
+    .setSelectMenu(() => ({
+      builder: buildSelectMenu(),
+      onSelect: async (ctx, values) => {
+        const currentValues = ctx.state.get('selections');
+        ctx.state.set('selections', [...currentValues, ...values]);
+      },
+    }))
+    .build();
+
 describe('select menu', () => {
   it('onSelect receives the selected values', async () => {
-    let capturedValues: string[] | null = null;
+    expect.assertions(2);
 
-    function makeMain(session: MenuSessionLike) {
-      return new MenuBuilder(session, 'main')
-        .setEmbeds(() => [])
-        .setSelectMenu(() => ({
-          builder: buildSelectMenu(),
-          onSelect: async (_ctx, values) => {
-            capturedValues = values;
-          },
-        }))
-        .setButtons(() => [
-          { label: 'Close', style: ButtonStyle.Danger, action: closeMenu() },
-        ])
-        .build();
-    }
+    const sim = new MenuHarness({ capture: mockCaptureMenu });
+    await sim.start('capture');
 
-    const { adapter, startSession } = createTestSession({ main: makeMain });
-    const done = startSession('main');
-    await adapter.waitForNextRender();
+    await sim.select(sim.getSelect(), ['a']);
 
-    const selectId = findSelectId(adapter.lastRender!);
-    expect(selectId).not.toBeNull();
-
-    adapter.enqueueComponent(select(selectId!, ['a']));
-    await adapter.waitForNextRender();
-
-    expect(capturedValues).toEqual(['a']);
-
-    const closeId = findButtonId(adapter.lastRender!, 'Close');
-    adapter.enqueueComponent(click(closeId!));
-    await done;
-  });
-
-  it('menu re-renders after a selection', async () => {
-    function makeMain(session: MenuSessionLike) {
-      return new MenuBuilder(session, 'main')
-        .setEmbeds(() => [])
-        .setSelectMenu(() => ({
-          builder: buildSelectMenu(),
-          onSelect: async () => {},
-        }))
-        .setButtons(() => [
-          { label: 'Close', style: ButtonStyle.Danger, action: closeMenu() },
-        ])
-        .build();
-    }
-
-    const { adapter, startSession } = createTestSession({ main: makeMain });
-    const done = startSession('main');
-    await adapter.waitForNextRender();
-
-    const rendersBefore = adapter.renderCount;
-    const selectId = findSelectId(adapter.lastRender!);
-
-    adapter.enqueueComponent(select(selectId!, ['b']));
-    await adapter.waitForNextRender();
-
-    expect(adapter.renderCount).toBe(rendersBefore + 1);
-
-    const closeId = findButtonId(adapter.lastRender!, 'Close');
-    adapter.enqueueComponent(click(closeId!));
-    await done;
+    expect(sim.hasText('Selections: a')).toBe(true);
+    expect(sim.renderCount).toBe(2);
   });
 
   it('select can be used multiple times', async () => {
-    const allValues: string[][] = [];
+    expect.assertions(1);
 
-    function makeMain(session: MenuSessionLike) {
-      return new MenuBuilder(session, 'main')
-        .setEmbeds(() => [])
-        .setSelectMenu(() => ({
-          builder: buildSelectMenu(),
-          onSelect: async (_ctx, values) => {
-            allValues.push(values);
-          },
-        }))
-        .setButtons(() => [
-          { label: 'Close', style: ButtonStyle.Danger, action: closeMenu() },
-        ])
-        .build();
-    }
-
-    const { adapter, startSession } = createTestSession({ main: makeMain });
-    const done = startSession('main');
-    await adapter.waitForNextRender();
-
-    const selectId = findSelectId(adapter.lastRender!);
+    const sim = new MenuHarness({ capture: mockCaptureMenu });
+    await sim.start('capture');
 
     for (const vals of [['a'], ['b'], ['a', 'b']]) {
-      adapter.enqueueComponent(select(selectId!, vals));
-      await adapter.waitForNextRender();
+      await sim.select(sim.getSelect(), vals);
     }
 
-    expect(allValues).toEqual([['a'], ['b'], ['a', 'b']]);
-
-    const closeId = findButtonId(adapter.lastRender!, 'Close');
-    adapter.enqueueComponent(click(closeId!));
-    await done;
+    expect(sim.hasText('Selections: a, b, a, b')).toBe(true);
   });
 
   it('select custom_id is namespaced in the payload', async () => {
-    function makeMain(session: MenuSessionLike) {
-      return new MenuBuilder(session, 'main')
-        .setEmbeds(() => [])
-        .setSelectMenu(() => ({
-          builder: buildSelectMenu(),
-          onSelect: async () => {},
-        }))
-        .setButtons(() => [
-          { label: 'Close', style: ButtonStyle.Danger, action: closeMenu() },
-        ])
-        .build();
-    }
+    expect.assertions(1);
+    const sim = new MenuHarness({ main: mockMainMenu });
+    await sim.start('main');
 
-    const { adapter, startSession } = createTestSession({ main: makeMain });
-    const done = startSession('main');
-    await adapter.waitForNextRender();
-
-    const selectId = findSelectId(adapter.lastRender!);
-    // The framework assigns its own internal ID ('__select') and namespaces it with
-    // the session prefix. The raw builder custom_id is NOT preserved in the payload.
-    expect(selectId).not.toBeNull();
-    // Should be namespaced: contains a ':' separator (sessionId:menuId:componentId format)
-    expect(selectId).toContain(':');
-
-    const closeId = findButtonId(adapter.lastRender!, 'Close');
-    adapter.enqueueComponent(click(closeId!));
-    await done;
+    // TODO: This doesn't actually use the custom ID right now since the framework only
+    // suports one select menu per menu. This test should eventually be updated to include
+    // the actual customId instead of __select
+    expect(sim.getSelect().customId).toContain(':main:__select');
   });
 });

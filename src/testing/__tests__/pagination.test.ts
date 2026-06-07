@@ -1,203 +1,146 @@
-import { ButtonStyle, EmbedBuilder } from 'discord.js';
-import { MenuBuilder } from '../../menu/MenuBuilder';
-import { closeMenu } from '../../action';
-import { createTestSession } from '../createTestSession';
-import type { MenuSessionLike } from '../../context/MenuContext';
-import type { PaginationState } from '../../types';
-import { click, findButtonId, reservedClick } from './helpers';
+import { EmbedBuilder } from 'discord.js';
 
-/** Capture pagination state from inside a render callback. */
-function capturePagination(session: MenuSessionLike): {
-  startSession: ReturnType<typeof createTestSession>['startSession'];
-  adapter: ReturnType<typeof createTestSession>['adapter'];
-  getLastPagination: () => PaginationState | null;
-} {
-  // This is a helper factory — not the actual pattern, just for the describe block below.
-  // Use createTestSession directly in each test instead.
-  throw new Error('Use createTestSession directly');
-}
+import type { MenuSessionLike } from '../../context/MenuContext';
+import { MenuBuilder } from '../../menu/MenuBuilder';
+import { MenuHarness } from '../MenuHarness';
 
 describe('list pagination', () => {
   it('ctx.pagination is populated on first render', async () => {
-    let capturedPagination: PaginationState | null = null;
-
-    function makeMain(session: MenuSessionLike) {
-      return new MenuBuilder(session, 'main')
-        .setListPagination({ getTotalQuantityItems: () => 25, itemsPerPage: 10 })
-        .setEmbeds((ctx) => {
-          capturedPagination = ctx.pagination;
-          return [new EmbedBuilder().setDescription('page')];
+    expect.assertions(3);
+    const mockMainMenu = (session: MenuSessionLike) =>
+      new MenuBuilder(session, 'main')
+        .setListPagination({
+          getTotalQuantityItems: () => 25,
+          itemsPerPage: 10,
         })
-        .setButtons(() => [
-          { label: 'Close', style: ButtonStyle.Danger, action: closeMenu() },
-        ])
+        .setEmbeds((ctx) => {
+          if (!ctx.pagination) return [];
+          return [
+            new EmbedBuilder()
+              .setDescription(
+                `Showing page ${ctx.pagination.currentPage + 1} of ${ctx.pagination.totalPages}`,
+              )
+              .setFields({
+                name: 'Details',
+                value:
+                  `Items: ${ctx.pagination.startIndex + 1}-${ctx.pagination.endIndex}` +
+                  `\nItems per page: ${ctx.pagination.itemsPerPage}`,
+              }),
+          ];
+        })
         .build();
-    }
 
-    const { adapter, startSession } = createTestSession({ main: makeMain });
-    const done = startSession('main');
-    await adapter.waitForNextRender();
+    const sim = new MenuHarness({ main: mockMainMenu });
+    await sim.start('main');
 
-    expect(capturedPagination).not.toBeNull();
-    expect(capturedPagination!.currentPage).toBe(0);
-    expect(capturedPagination!.totalPages).toBe(3); // ceil(25/10)
-    expect(capturedPagination!.itemsPerPage).toBe(10);
-    expect(capturedPagination!.startIndex).toBe(0);
-    expect(capturedPagination!.endIndex).toBe(10); // exclusive upper bound
-
-    const closeId = findButtonId(adapter.lastRender!, 'Close');
-    adapter.enqueueComponent(click(closeId!));
-    await done;
+    expect(sim.hasText('Showing page 1 of 3')).toBe(true);
+    expect(sim.hasText('Items: 1-10')).toBe(true);
+    expect(sim.hasText('Items per page: 10')).toBe(true);
   });
 
   it('clicking next advances to the next page', async () => {
-    const paginationHistory: PaginationState[] = [];
-
-    function makeMain(session: MenuSessionLike) {
-      return new MenuBuilder(session, 'main')
-        .setListPagination({ getTotalQuantityItems: () => 20, itemsPerPage: 10 })
-        .setEmbeds((ctx) => {
-          if (ctx.pagination) paginationHistory.push({ ...ctx.pagination });
-          return [new EmbedBuilder().setDescription('page')];
+    expect.assertions(1);
+    const mockMainMenu = (session: MenuSessionLike) =>
+      new MenuBuilder(session, 'main')
+        .setListPagination({
+          getTotalQuantityItems: () => 20,
+          itemsPerPage: 10,
         })
-        .setButtons(() => [
-          { label: 'Close', style: ButtonStyle.Danger, action: closeMenu() },
-        ])
+        .setEmbeds((ctx) => {
+          if (!ctx.pagination) return [];
+          return [
+            new EmbedBuilder().setFooter({
+              text:
+                `Page: ${ctx.pagination.currentPage + 1} - ` +
+                `Items: ${ctx.pagination.startIndex + 1}-${ctx.pagination.endIndex}`,
+            }),
+          ];
+        })
         .build();
-    }
 
-    const { adapter, startSession } = createTestSession({ main: makeMain });
-    const done = startSession('main');
-    await adapter.waitForNextRender();
+    const sim = new MenuHarness({ main: mockMainMenu });
+    await sim.start('main');
 
-    const nextInteraction = reservedClick(adapter.lastRender!, '__reserved_next', 'main');
-    adapter.enqueueComponent(nextInteraction);
-    await adapter.waitForNextRender();
+    await sim.nextPage();
 
-    expect(paginationHistory.length).toBe(2);
-    expect(paginationHistory[1]!.currentPage).toBe(1);
-    expect(paginationHistory[1]!.startIndex).toBe(10);
-    expect(paginationHistory[1]!.endIndex).toBe(20); // exclusive upper bound
-
-    const closeId = findButtonId(adapter.lastRender!, 'Close');
-    adapter.enqueueComponent(click(closeId!));
-    await done;
+    expect(sim.hasText('Page: 2 - Items: 11-20')).toBe(true);
   });
 
   it('clicking previous goes back to the previous page', async () => {
-    let currentPage = -1;
-
-    function makeMain(session: MenuSessionLike) {
-      return new MenuBuilder(session, 'main')
-        .setListPagination({ getTotalQuantityItems: () => 30, itemsPerPage: 10 })
-        .setEmbeds((ctx) => {
-          if (ctx.pagination) currentPage = ctx.pagination.currentPage;
-          return [new EmbedBuilder().setDescription('page')];
+    expect.assertions(2);
+    const mockMainMenu = (session: MenuSessionLike) =>
+      new MenuBuilder(session, 'main')
+        .setListPagination({
+          getTotalQuantityItems: () => 30,
+          itemsPerPage: 10,
         })
-        .setButtons(() => [
-          { label: 'Close', style: ButtonStyle.Danger, action: closeMenu() },
-        ])
+        .setEmbeds((ctx) => {
+          if (!ctx.pagination) return [];
+          return [
+            new EmbedBuilder().setDescription(
+              `Current page: ${ctx.pagination.currentPage + 1}`,
+            ),
+          ];
+        })
         .build();
-    }
 
-    const { adapter, startSession } = createTestSession({ main: makeMain });
-    const done = startSession('main');
-    await adapter.waitForNextRender();
+    const sim = new MenuHarness({ main: mockMainMenu });
+    await sim.start('main');
 
-    // Go to page 1
-    adapter.enqueueComponent(reservedClick(adapter.lastRender!, '__reserved_next', 'main'));
-    await adapter.waitForNextRender();
-    expect(currentPage).toBe(1);
+    await sim.nextPage();
+    expect(sim.hasText('Current page: 2')).toBe(true);
 
-    // Go back to page 0
-    adapter.enqueueComponent(reservedClick(adapter.lastRender!, '__reserved_previous', 'main'));
-    await adapter.waitForNextRender();
-    expect(currentPage).toBe(0);
-
-    const closeId = findButtonId(adapter.lastRender!, 'Close');
-    adapter.enqueueComponent(click(closeId!));
-    await done;
+    await sim.prevPage();
+    expect(sim.hasText('Current page: 1')).toBe(true);
   });
 
   it('previous button is disabled on first page', async () => {
-    function makeMain(session: MenuSessionLike) {
-      return new MenuBuilder(session, 'main')
-        .setListPagination({ getTotalQuantityItems: () => 20, itemsPerPage: 10 })
+    expect.assertions(1);
+    const mockMainMenu = (session: MenuSessionLike) =>
+      new MenuBuilder(session, 'main')
+        .setListPagination({
+          getTotalQuantityItems: () => 20,
+          itemsPerPage: 10,
+        })
         .setEmbeds(() => [new EmbedBuilder().setDescription('page')])
-        .setButtons(() => [
-          { label: 'Close', style: ButtonStyle.Danger, action: closeMenu() },
-        ])
         .build();
-    }
 
-    const { adapter, startSession } = createTestSession({ main: makeMain });
-    const done = startSession('main');
-    await adapter.waitForNextRender();
+    const sim = new MenuHarness({ main: mockMainMenu });
+    await sim.start('main');
 
-    // Find previous button in payload and check disabled flag
-    const payload = adapter.lastRender!;
-    const allComponents = payload.components ?? [];
-    let prevDisabled: boolean | undefined;
-    for (const row of allComponents) {
-      for (const comp of row.components as unknown as Record<string, unknown>[]) {
-        if (
-          typeof comp['custom_id'] === 'string' &&
-          (comp['custom_id'] as string).endsWith('__reserved_previous')
-        ) {
-          prevDisabled = comp['disabled'] as boolean | undefined;
-        }
-      }
-    }
-    expect(prevDisabled).toBe(true);
-
-    const closeId = findButtonId(adapter.lastRender!, 'Close');
-    adapter.enqueueComponent(click(closeId!));
-    await done;
+    expect(sim.queryButtonById('__reserved_previous')?.disabled).toBe(
+      true,
+    );
   });
 
   it('next button is disabled on last page', async () => {
-    let currentPage = 0;
+    expect.assertions(2);
 
-    function makeMain(session: MenuSessionLike) {
-      return new MenuBuilder(session, 'main')
-        .setListPagination({ getTotalQuantityItems: () => 20, itemsPerPage: 10 })
-        .setEmbeds((ctx) => {
-          if (ctx.pagination) currentPage = ctx.pagination.currentPage;
-          return [new EmbedBuilder().setDescription('page')];
+    const mockMainMenu = (session: MenuSessionLike) =>
+      new MenuBuilder(session, 'main')
+        .setListPagination({
+          // 2 pages total
+          getTotalQuantityItems: () => 20,
+          itemsPerPage: 10,
         })
-        .setButtons(() => [
-          { label: 'Close', style: ButtonStyle.Danger, action: closeMenu() },
-        ])
+        .setEmbeds((ctx) => {
+          if (!ctx.pagination) return [];
+          return [
+            new EmbedBuilder().setDescription(
+              `Current page: ${ctx.pagination.currentPage + 1}`,
+            ),
+          ];
+        })
         .build();
-    }
 
-    const { adapter, startSession } = createTestSession({ main: makeMain });
-    const done = startSession('main');
-    await adapter.waitForNextRender();
+    const sim = new MenuHarness({ main: mockMainMenu });
+    await sim.start('main');
 
-    // Navigate to last page
-    adapter.enqueueComponent(reservedClick(adapter.lastRender!, '__reserved_next', 'main'));
-    await adapter.waitForNextRender();
-    expect(currentPage).toBe(1); // last page (total=20, perPage=10 → 2 pages, 0-indexed last = 1)
+    await sim.nextPage();
+    expect(sim.hasText('Current page: 2')).toBe(true);
 
-    // Check next button is disabled
-    const payload = adapter.lastRender!;
-    const allComponents = payload.components ?? [];
-    let nextDisabled: boolean | undefined;
-    for (const row of allComponents) {
-      for (const comp of row.components as unknown as Record<string, unknown>[]) {
-        if (
-          typeof comp['custom_id'] === 'string' &&
-          (comp['custom_id'] as string).endsWith('__reserved_next')
-        ) {
-          nextDisabled = comp['disabled'] as boolean | undefined;
-        }
-      }
-    }
-    expect(nextDisabled).toBe(true);
-
-    const closeId = findButtonId(adapter.lastRender!, 'Close');
-    adapter.enqueueComponent(click(closeId!));
-    await done;
+    expect(sim.queryButtonById('__reserved_next')?.disabled).toBe(
+      true,
+    );
   });
 });
