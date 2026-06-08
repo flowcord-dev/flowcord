@@ -30,16 +30,17 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
           cache: 'npm'
 
       - name: Upgrade npm for OIDC Trusted Publishing
-        # OIDC Trusted Publishing requires npm >= 11.5.1; Node 20/22 ship npm 10.x,
-        # which silently skips the OIDC token exchange and fails publish with E404
-        # (while still signing provenance). See CONTRIBUTING / release docs.
+        # OIDC Trusted Publishing requires npm >= 11.5.1. Node bundles an older npm
+        # (10.x on 20/22, an earlier 11.x on 24) that may silently skip the OIDC token
+        # exchange and fail publish with E404 while still signing provenance — so pin
+        # npm explicitly rather than relying on whatever the Node version bundled.
         run: |
-          npm install -g npm@latest
+          npm install -g npm@^11.5.1
           npm -v
 
       - name: Install dependencies
