@@ -70,7 +70,8 @@ jobs:
                   if (ref.pull_request) continue; // a PR, not an issue
                   closingIssues.push({ number, labels: ref.labels.map((lbl) => (typeof lbl === 'string' ? lbl : lbl.name)) });
                 } catch (err) {
-                  core.warning(`Could not fetch referenced issue #${number}: ${err.message}`);
+                  const message = err instanceof Error ? err.message : String(err);
+                  core.warning(`Could not fetch referenced issue #${number}: ${message}`);
                 }
               }
             }
