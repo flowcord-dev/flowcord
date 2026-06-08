@@ -8,6 +8,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "require": "./dist/index.js"
+    },
+    "./mocks": {
+      "types": "./dist/mocks/index.d.ts",
+      "require": "./dist/mocks/index.js"
     }
   },
   "files": [

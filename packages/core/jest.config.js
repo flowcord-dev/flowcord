@@ -7,13 +7,16 @@ module.exports = {
   },
   testMatch: ['**/*.test.ts'],
   moduleFileExtensions: ['ts', 'js'],
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
+  moduleNameMapper: {
+    // The mocks subpath resolves to source so unit tests run without a build.
+    '^@flowcord/core/mocks$': '<rootDir>/src/mocks/index.ts',
+  },
   coverageDirectory: 'coverage',
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',
     '!src/**/index.ts', // barrel re-export files (no logic)
-    '!src/testing/**', // test infrastructure — published separately via @flowcord/testing (Phase 3)
+    '!src/mocks/**', // test mocks — shipped via @flowcord/core/mocks, not product logic
     '!src/**/__tests__/**', // test files themselves
   ],
   passWithNoTests: true,

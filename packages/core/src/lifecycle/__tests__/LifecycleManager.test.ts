@@ -1,4 +1,4 @@
-import { mockMenuContext } from '../../testing';
+import { mockMenuContext } from '@flowcord/core/mocks';
 import type { MenuHooks } from '../hooks';
 import { LifecycleManager } from '../LifecycleManager';
 

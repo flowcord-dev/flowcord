@@ -2,9 +2,9 @@ import type {
   MenuContext,
   MenuInstanceLike,
   MenuSessionLike,
-} from '../../context/MenuContext';
-import { StateAccessor } from '../../state/StateAccessor';
-import { StateStore } from '../../state/StateStore';
+} from '../context/MenuContext';
+import { StateAccessor } from '../state/StateAccessor';
+import { StateStore } from '../state/StateStore';
 import { mockClient, mockCommandInteraction } from './discordjs';
 
 interface MockMenuContextOverrides<

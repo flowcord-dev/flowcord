@@ -6,7 +6,7 @@ import {
   StringSelectMenuBuilder,
 } from 'discord.js';
 
-import { mockMenuSessionLike } from '../../testing';
+import { mockMenuSessionLike } from '@flowcord/core/mocks';
 import type {
   ButtonConfig,
   ModalConfig,

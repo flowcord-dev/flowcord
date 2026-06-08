@@ -5,7 +5,7 @@ import {
   mockComponentInteraction,
   mockMessage,
   mockModalSubmitInteraction,
-} from '../../testing';
+} from '@flowcord/core/mocks';
 import { DiscordAdapter } from '../DiscordAdapter';
 import type {
   NormalizedRenderPayload,

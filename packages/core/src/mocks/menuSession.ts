@@ -1,5 +1,5 @@
-import type { MenuSessionLike } from '../../context/MenuContext';
-import { StateStore } from '../../state/StateStore';
+import type { MenuSessionLike } from '../context/MenuContext';
+import { StateStore } from '../state/StateStore';
 
 /**
  * Build a minimal MenuSessionLike stub for unit tests.
