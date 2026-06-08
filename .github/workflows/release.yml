@@ -37,23 +37,25 @@ jobs:
       - name: Upgrade npm for OIDC Trusted Publishing
         # OIDC Trusted Publishing requires npm >= 11.5.1. Node bundles an older npm
         # (10.x on 20/22, an earlier 11.x on 24) that may silently skip the OIDC token
-        # exchange and fail publish with E404 while still signing provenance — so pin
-        # npm explicitly rather than relying on whatever the Node version bundled.
+        # exchange and fail publish with E404 while still signing provenance. Pin an
+        # exact, known-good npm rather than relying on the bundled version (bump deliberately).
         run: |
-          npm install -g npm@^11.5.1
+          npm install -g npm@11.16.0 --ignore-scripts
           npm -v
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Typecheck & Lint
-        run: npx nx run-many -t typecheck lint
+        run: |
+          npm run typecheck
+          npm run lint
 
       - name: Test
-        run: npx nx test core --coverage
+        run: npm run test:coverage
 
       - name: Build
-        run: npx nx build core
+        run: npm run build
 
       - name: Determine npm dist-tag
         id: dist_tag
@@ -68,7 +70,7 @@ jobs:
           fi
 
       - name: Publish to npm
-        run: npx nx release publish --tag ${{ steps.dist_tag.outputs.tag }}
+        run: npm run release:publish -- --tag ${{ steps.dist_tag.outputs.tag }}
         env:
           NPM_CONFIG_PROVENANCE: 'true' # publish with provenance via OIDC
 
@@ -82,7 +84,7 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           prerelease: ${{ steps.dist_tag.outputs.prerelease == 'true' }}
           body: ${{ steps.changelog.outputs.notes }}
