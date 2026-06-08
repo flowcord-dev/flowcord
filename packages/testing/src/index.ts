@@ -11,6 +11,12 @@ export type {
   SelectResult,
 } from './MenuHarness';
 export {
+  SimulatedAdapter,
+  SimulatedTimeoutError,
+} from './SimulatedAdapter';
+// Re-exported from core for convenience: the mocks live in @flowcord/core/mocks
+// so core's own unit tests can use them without a core -> testing dependency.
+export {
   mockClient,
   mockCommandInteraction,
   mockComponentInteraction,
@@ -18,10 +24,7 @@ export {
   mockMenuSessionLike,
   mockMessage,
   mockModalSubmitInteraction,
-} from './mocks';
-export {
-  SimulatedAdapter,
-  SimulatedTimeoutError,
-} from './SimulatedAdapter';
-export { EventLog } from '../tracing/EventLog';
-export type { SessionEvent } from '../tracing/EventLog';
+} from '@flowcord/core/mocks';
+// Re-exported from core for convenience: EventLog is the harness's tracing sink.
+export { EventLog } from '@flowcord/core';
+export type { SessionEvent } from '@flowcord/core';

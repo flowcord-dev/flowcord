@@ -5,11 +5,11 @@ import {
   StringSelectMenuOptionBuilder,
 } from 'discord.js';
 
-import { closeMenu, goTo } from '../../action';
-import type { MenuSessionLike } from '../../context/MenuContext';
-import { MenuBuilder } from '../../menu/MenuBuilder';
-import type { CreateMenuDefinitionFn } from '../../registry/MenuRegistry';
-import { MenuHarness } from '../MenuHarness';
+import { closeMenu, goTo } from '@flowcord/core';
+import type { MenuSessionLike } from '@flowcord/core';
+import { MenuBuilder } from '@flowcord/core';
+import type { CreateMenuDefinitionFn } from '@flowcord/core';
+import { MenuHarness } from '@flowcord/testing';
 
 // ---------------------------------------------------------------------------
 // Menu factories

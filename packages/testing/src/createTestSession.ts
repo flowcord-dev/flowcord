@@ -1,8 +1,6 @@
-import { MenuEngine } from '../engine/MenuEngine';
-import type { CreateMenuDefinitionFn } from '../registry/MenuRegistry';
-import { EventLog } from '../tracing/EventLog';
-import type { BehaviorPolicy } from '../types/behavior';
-import { mockClient, mockCommandInteraction } from './mocks';
+import { EventLog, MenuEngine } from '@flowcord/core';
+import type { BehaviorPolicy, CreateMenuDefinitionFn } from '@flowcord/core';
+import { mockClient, mockCommandInteraction } from '@flowcord/core/mocks';
 import { SimulatedAdapter } from './SimulatedAdapter';
 
 export interface CreateTestSessionOptions {
