@@ -40,7 +40,8 @@
     }
   ],
   "release": {
-    "projects": ["@flowcord/core"],
+    "projects": ["@flowcord/core", "@flowcord/testing"],
+    "projectsRelationship": "fixed",
     "releaseTagPattern": "v{version}",
     "version": {
       "conventionalCommits": false,
