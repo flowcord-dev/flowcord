@@ -3,7 +3,7 @@ name: PR Gate
 on:
   pull_request:
     types: [opened, reopened, edited]
-    branches: [master, develop]
+    branches: [master, develop, 'epic/**']
 
 jobs:
   check-linked-issue:

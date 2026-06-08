@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write # needed to create GitHub Releases
-      id-token: write # needed for npm OIDC publishing
+      id-token: write # needed for npm OIDC Trusted Publishing + provenance
 
     steps:
       - name: Checkout
@@ -32,18 +32,27 @@ jobs:
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
+          cache: 'npm'
+
+      - name: Upgrade npm for OIDC Trusted Publishing
+        # OIDC Trusted Publishing requires npm >= 11.5.1; Node 20/22 ship npm 10.x,
+        # which silently skips the OIDC token exchange and fails publish with E404
+        # (while still signing provenance). See CONTRIBUTING / release docs.
+        run: |
+          npm install -g npm@latest
+          npm -v
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Typecheck
-        run: npm run typecheck
+      - name: Typecheck & Lint
+        run: npx nx run-many -t typecheck lint
 
       - name: Test
-        run: npm test
+        run: npx nx test core --coverage
 
       - name: Build
-        run: npm run build
+        run: npx nx build core
 
       - name: Determine npm dist-tag
         id: dist_tag
@@ -58,13 +67,15 @@ jobs:
           fi
 
       - name: Publish to npm
-        run: npm publish --provenance --tag ${{ steps.dist_tag.outputs.tag }}
+        run: npx nx release publish --tag ${{ steps.dist_tag.outputs.tag }}
+        env:
+          NPM_CONFIG_PROVENANCE: 'true' # publish with provenance via OIDC
 
       - name: Extract changelog notes
         id: changelog
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          NOTES=$(awk "/^## \[$VERSION\]/{found=1; next} /^## \[/{if(found) exit} found{print}" CHANGELOG.md)
+          NOTES=$(awk "/^## \[$VERSION\]/{found=1; next} /^## \[/{if(found) exit} found{print}" packages/core/CHANGELOG.md)
           echo "notes<<EOF" >> $GITHUB_OUTPUT
           echo "$NOTES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT

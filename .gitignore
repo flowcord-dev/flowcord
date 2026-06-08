@@ -6,3 +6,10 @@ coverage/
 .env.local
 .claude/
 .vscode/
+
+# Nx
+.nx/cache
+.nx/workspace-data
+
+# TypeScript project-reference build artifacts
+out-tsc/
