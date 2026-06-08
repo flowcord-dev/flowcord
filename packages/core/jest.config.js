@@ -3,7 +3,7 @@ module.exports = {
   displayName: 'flowcord',
   testEnvironment: 'node',
   transform: {
-    '^.+\\.ts$': ['ts-jest', { tsconfig: 'tsconfig.test.json' }],
+    '^.+\\.ts$': ['ts-jest', { tsconfig: 'tsconfig.spec.json' }],
   },
   testMatch: ['**/*.test.ts'],
   moduleFileExtensions: ['ts', 'js'],

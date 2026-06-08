@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write # needed to create GitHub Releases
-      id-token: write # needed for npm OIDC publishing
+      id-token: write # needed for npm OIDC Trusted Publishing + provenance
 
     steps:
       - name: Checkout
@@ -30,17 +30,29 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
+          cache: 'npm'
+
+      - name: Upgrade npm for OIDC Trusted Publishing
+        # OIDC Trusted Publishing requires npm >= 11.5.1. Node bundles an older npm
+        # (10.x on 20/22, an earlier 11.x on 24) that may silently skip the OIDC token
+        # exchange and fail publish with E404 while still signing provenance. Pin an
+        # exact, known-good npm rather than relying on the bundled version (bump deliberately).
+        run: |
+          npm install -g npm@11.16.0 --ignore-scripts
+          npm -v
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
 
-      - name: Typecheck
-        run: npm run typecheck
+      - name: Typecheck & Lint
+        run: |
+          npm run typecheck
+          npm run lint
 
       - name: Test
-        run: npm test
+        run: npm run test:coverage
 
       - name: Build
         run: npm run build
@@ -58,19 +70,21 @@ jobs:
           fi
 
       - name: Publish to npm
-        run: npm publish --provenance --tag ${{ steps.dist_tag.outputs.tag }}
+        run: npm run release:publish -- --tag ${{ steps.dist_tag.outputs.tag }}
+        env:
+          NPM_CONFIG_PROVENANCE: 'true' # publish with provenance via OIDC
 
       - name: Extract changelog notes
         id: changelog
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          NOTES=$(awk "/^## \[$VERSION\]/{found=1; next} /^## \[/{if(found) exit} found{print}" CHANGELOG.md)
+          NOTES=$(awk "/^## \[$VERSION\]/{found=1; next} /^## \[/{if(found) exit} found{print}" packages/core/CHANGELOG.md)
           echo "notes<<EOF" >> $GITHUB_OUTPUT
           echo "$NOTES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           prerelease: ${{ steps.dist_tag.outputs.prerelease == 'true' }}
           body: ${{ steps.changelog.outputs.notes }}
