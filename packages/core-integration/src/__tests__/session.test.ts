@@ -6,10 +6,10 @@ import {
   closeMenu,
   guard,
   pipeline,
-} from '../../action';
-import type { MenuSessionLike } from '../../context/MenuContext';
-import { MenuBuilder } from '../../menu/MenuBuilder';
-import { MenuHarness } from '../MenuHarness';
+} from '@flowcord/core';
+import type { MenuSessionLike } from '@flowcord/core';
+import { MenuBuilder } from '@flowcord/core';
+import { MenuHarness } from '@flowcord/testing';
 
 // ---------------------------------------------------------------------------
 // Menu factories

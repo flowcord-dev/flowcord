@@ -1,9 +1,9 @@
 import { ButtonStyle, EmbedBuilder } from 'discord.js';
 
-import { goTo } from '../../action';
-import type { MenuSessionLike } from '../../context/MenuContext';
-import { MenuBuilder } from '../../menu/MenuBuilder';
-import { MenuHarness } from '../MenuHarness';
+import { goTo } from '@flowcord/core';
+import type { MenuSessionLike } from '@flowcord/core';
+import { MenuBuilder } from '@flowcord/core';
+import { MenuHarness } from '@flowcord/testing';
 
 // Reusable detail menu: returnable with a Back button and fallback to 'main'.
 const mockDetailMenu = (session: MenuSessionLike) =>

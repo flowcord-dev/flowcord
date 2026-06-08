@@ -1,8 +1,8 @@
 import { EmbedBuilder } from 'discord.js';
 
-import type { MenuSessionLike } from '../../context/MenuContext';
-import { MenuBuilder } from '../../menu/MenuBuilder';
-import { MenuHarness } from '../MenuHarness';
+import type { MenuSessionLike } from '@flowcord/core';
+import { MenuBuilder } from '@flowcord/core';
+import { MenuHarness } from '@flowcord/testing';
 
 describe('list pagination', () => {
   it('ctx.pagination is populated on first render', async () => {
