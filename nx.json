@@ -55,5 +55,6 @@
         "createRelease": false
       }
     }
-  }
+  },
+  "analytics": false
 }
