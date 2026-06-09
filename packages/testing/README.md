@@ -56,9 +56,6 @@ afterEach(async () => {
 
 > `harness.end()` is test teardown — it force-terminates any still-running
 > session, and is what `endAll()` calls to clean up open handles after each test.
-> (`cancel()` is different: it simulates the user clicking the reserved **Cancel**
-> button, ending the session with reason `cancelled` — use it only when asserting
-> on cancel behavior.)
 
 ## API surface
 
