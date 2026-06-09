@@ -4,7 +4,9 @@
   "private": true,
   "description": "Integration (behavior) tests for @flowcord/core — exercises core through @flowcord/testing's harness",
   "scripts": {
-    "clean": "node -e \"require('fs').rmSync('out-tsc', { recursive: true, force: true })\""
+    "clean": "node -e \"require('fs').rmSync('out-tsc', { recursive: true, force: true })\"",
+    "test": "jest",
+    "test:coverage": "jest --coverage"
   },
   "license": "Apache-2.0",
   "author": "Nicholas Bely",

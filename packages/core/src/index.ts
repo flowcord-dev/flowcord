@@ -113,8 +113,7 @@ export type {
   NormalizedTerminalReason,
 } from './adapter';
 
-// Tracing (production — NavigationTracer is enabled via MenuEngine config;
-// EventLog is consumed by MenuEngine/MenuSession and by @flowcord/testing)
+// Tracing
 export { NavigationTracer, EventLog } from './tracing';
 export type { NavigationEvent, SessionEvent } from './tracing';
 

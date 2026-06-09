@@ -1,4 +1,4 @@
-import { MenuHarness } from '@flowcord/testing';
+import { MenuHarness } from './src/MenuHarness';
 
 /**
  * After every test, end any MenuHarness instances that were not explicitly

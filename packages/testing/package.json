@@ -17,6 +17,8 @@
   ],
   "scripts": {
     "clean": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
     "prepublishOnly": "nx build @flowcord/testing"
   },
   "publishConfig": {
@@ -36,9 +38,16 @@
   "keywords": [
     "discord",
     "discord.js",
+    "discord-bot",
     "menu",
     "testing",
     "test-harness",
+    "integration-testing",
+    "integration-tests",
+    "e2e",
+    "headless",
+    "simulator",
+    "mocks",
     "flowcord"
   ],
   "license": "Apache-2.0",

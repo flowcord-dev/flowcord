@@ -24,12 +24,12 @@ npm install --save-dev @flowcord/testing
 
 ```ts
 import { MenuHarness } from '@flowcord/testing';
-import { makeMainMenu, makeDetailMenu } from '../src/menus';
+import { mockMainMenu, mockDetailMenu } from '../src/menus';
 
 it('navigates to the detail menu on button click', async () => {
   const harness = new MenuHarness({
-    main: makeMainMenu,
-    detail: makeDetailMenu,
+    main: mockMainMenu,
+    detail: mockDetailMenu,
   });
 
   await harness.start('main');
@@ -38,13 +38,12 @@ it('navigates to the detail menu on button click', async () => {
 
   expect(harness.currentMenu).toBe('detail');
   expect(harness.hasText('Detail view')).toBe(true);
-
-  await harness.cancel(); // drain the session to completion
+  // No explicit teardown needed — the afterEach hook below ends any open session.
 });
 ```
 
-`MenuHarness.endAll()` ends every harness left open by a test — wire it into a
-global `afterEach` so a forgotten `cancel()`/`end()` never leaks an open handle:
+Wire `MenuHarness.endAll()` into a global `afterEach` so a session left open by
+a test never leaks an open handle:
 
 ```ts
 // jest.setup.ts
@@ -55,22 +54,21 @@ afterEach(async () => {
 });
 ```
 
+> `harness.end()` is test teardown — it force-terminates any still-running session (this
+> is what `endAll()` to end all open handles after each test).
+
 ## API surface
 
-| Export | Purpose |
-|--------|---------|
-| `MenuHarness` | High-level harness: start a session, drive interactions, assert on renders |
-| `createTestSession` | Lower-level factory returning the raw `SimulatedAdapter` + a `startSession` fn |
-| `SimulatedAdapter` | In-process `FlowCordAdapter` test double backed by an interaction queue |
-| `SimulatedTimeoutError` | Thrown when the adapter's safety timeout fires |
-| `mockClient`, `mockCommandInteraction`, `mockComponentInteraction`, `mockMessage`, `mockModalSubmitInteraction` | Discord.js stubs for unit tests |
-| `mockMenuContext` | Stub `MenuContext` for functions that take one directly |
-| `mockMenuSessionLike` | Stub `MenuSessionLike` (e.g. constructing a `MenuBuilder` outside a session) |
-| `EventLog`, `SessionEvent` | Re-exported from core; the harness's tracing sink |
-
-> The mocks listed above live in core and are published at `@flowcord/core/mocks`
-> (so core's own unit tests can use them without depending on this package).
-> They're re-exported here for convenience — importing from either entry point works.
+| Export                                                                                                          | Purpose                                                                        |
+| --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `MenuHarness`                                                                                                   | High-level harness: start a session, drive interactions, assert on renders     |
+| `createTestSession`                                                                                             | Lower-level factory returning the raw `SimulatedAdapter` + a `startSession` fn |
+| `SimulatedAdapter`                                                                                              | In-process `FlowCordAdapter` test double backed by an interaction queue        |
+| `SimulatedTimeoutError`                                                                                         | Thrown when the adapter's safety timeout fires                                 |
+| `mockClient`, `mockCommandInteraction`, `mockComponentInteraction`, `mockMessage`, `mockModalSubmitInteraction` | Discord.js stubs for unit tests                                                |
+| `mockMenuContext`                                                                                               | Stub `MenuContext` for functions that take one directly                        |
+| `mockMenuSessionLike`                                                                                           | Stub `MenuSessionLike` (e.g. constructing a `MenuBuilder` outside a session)   |
+| `EventLog`, `SessionEvent`                                                                                      | Re-exported from core; the harness's tracing sink                              |
 
 ### `MenuHarness` highlights
 
@@ -78,7 +76,8 @@ afterEach(async () => {
 - **Drive:** `click()`, `select()`, `sendMessage()`, `clickModal()`, `submitModal()`, `goBack()`, `cancel()`, `nextPage()`, `prevPage()`
 - **Query rendered components:** `getButton()`/`queryButton()`, `getButtonById()`/`queryButtonById()`, `getSelect()`/`querySelect()`, `getEmbed()`/`queryEmbed()`
 - **Assert on content:** `currentMenu`, `hasText()`, `findText()`
-- **Inspect tracing:** `navigationHistory`, `hookHistory`, `actionHistory`, `lastAction`
+- **Manual payload access:** `renders`, `lastRender`, `renderCount`
+- **Inspect tracing:** `navigationHistory`, `hookHistory`, `actionHistory`, `lastAction`, `modalHistory`
 
 ## Writing integration tests
 
@@ -86,17 +85,13 @@ Each `MenuHarness` method that drives an interaction (`click`, `select`,
 `sendMessage`, …) awaits the next render before resolving, so you can read state
 immediately after. Two rules keep tests clean:
 
-- **Always drain the session.** End each test with a terminal action
-  (`cancel()`, `end()`, or a handler that closes the menu) so no session loop is
-  left running.
+- **Always drain the session.** No session loop should be left running at the
+  end of a test. The simplest way is the global `afterEach(() => MenuHarness.endAll())`
+  hook shown above, which ends any session a test left open — so individual tests
+  rarely need an explicit `end()`.
 - **Prefer the harness over the raw adapter.** Reach for `createTestSession` /
   `SimulatedAdapter` directly only when you need lower-level control over the
   render/interaction loop.
-
-## Conventions
-
-All variable names — including arrow-function parameters — must be **at least 3
-characters**. Single-character names (`i`, `e`, `fn`, `m`, …) are not permitted.
 
 ## License
 

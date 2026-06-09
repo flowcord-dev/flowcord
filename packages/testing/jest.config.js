@@ -10,7 +10,6 @@ module.exports = {
   moduleNameMapper: {
     '^@flowcord/core/mocks$': '<rootDir>/../core/src/mocks/index.ts',
     '^@flowcord/core$': '<rootDir>/../core/src/index.ts',
-    '^@flowcord/testing$': '<rootDir>/src/index.ts',
   },
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   coverageDirectory: 'coverage',

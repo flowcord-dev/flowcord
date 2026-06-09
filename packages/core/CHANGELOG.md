@@ -7,15 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- `@flowcord/core/mocks` subpath export exposing the Discord.js / context test mocks (`mockClient`, `mockCommandInteraction`, `mockComponentInteraction`, `mockMessage`, `mockModalSubmitInteraction`, `mockMenuContext`, `mockMenuSessionLike`). Consumed by `@flowcord/testing`; usable directly for unit tests. The main `@flowcord/core` entry is unchanged.
-- `EventLog` / `SessionEvent` and `NormalizedTerminalReason` are now part of the public API (previously internal; required by the extracted `@flowcord/testing` harness).
-
-### Changed
-
-- The test harness was extracted to the new `@flowcord/testing` package (version-locked in lockstep with core). Core's main bundle no longer contains harness code.
-
 ### Removed
 
 - `ctx.navigateTo()` — use `ctx.goTo()` instead (identical behavior, the alias added an inconsistency)
