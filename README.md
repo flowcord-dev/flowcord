@@ -9,8 +9,7 @@ Monorepo for **FlowCord** — a lifecycle-driven interactive menu framework for 
 | [`@flowcord/core`](packages/core) | `packages/core` | The core menu framework (published to npm). Test mocks ship under the `@flowcord/core/mocks` subpath. |
 | [`@flowcord/testing`](packages/testing) | `packages/testing` | Test harness for FlowCord (published, version-locked with core). |
 | `@flowcord/core-integration` | `packages/core-integration` | Private project: behavior tests that exercise core through the harness. Not published. |
-
-> A docs site lands in upcoming Phase 0 work.
+| `@flowcord/docs` | `packages/docs` | Documentation site (private, Docusaurus). Deployed to [flowcord.dev](https://flowcord.dev) — never published to npm. |
 
 ## Repo layout
 
