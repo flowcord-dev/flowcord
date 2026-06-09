@@ -1,29 +1,51 @@
 name: Release
 
+# Manually triggered release. The version bump + hand-written changelog arrive on
+# master via the release PR (develop -> master), so this workflow never commits to
+# master — it only verifies, tags, publishes, and creates the GitHub Release.
+#
+# The `release` Environment (Settings -> Environments) restricts deployments to the
+# master branch, replacing the old tag-ancestry guard. npm Trusted Publishing should
+# be pinned to this workflow + environment for both packages.
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
     name: Build, Test & Publish
     runs-on: ubuntu-latest
+    environment: release
     permissions:
-      contents: write # needed to create GitHub Releases
+      contents: write # needed to push the release tag and create GitHub Releases
       id-token: write # needed for npm OIDC Trusted Publishing + provenance
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # needed to check branch ancestry
 
-      - name: Verify tag is on master
+      - name: Read version
+        id: version
         run: |
-          git fetch origin master
-          if ! git merge-base --is-ancestor ${{ github.sha }} origin/master; then
-            echo "Tag does not point to a commit on master. Aborting release."
+          VERSION=$(node -p "require('./packages/core/package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Releasing v$VERSION"
+
+      - name: Verify version is unpublished and untagged
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          for PACKAGE in @flowcord/core @flowcord/testing; do
+            if npm view "$PACKAGE@$VERSION" version > /dev/null 2>&1; then
+              echo "$PACKAGE@$VERSION is already published to npm. Merge a release PR with a new version first."
+              exit 1
+            fi
+          done
+          if git ls-remote --exit-code origin "refs/tags/v$VERSION" > /dev/null 2>&1; then
+            echo "Tag v$VERSION already exists. Merge a release PR with a new version first."
             exit 1
           fi
 
@@ -46,6 +68,9 @@ jobs:
       - name: Install dependencies
         run: npm ci --ignore-scripts
 
+      - name: Verify TypeScript project references are in sync
+        run: npm run sync:check
+
       - name: Typecheck & Lint
         run: |
           npm run typecheck
@@ -59,8 +84,9 @@ jobs:
 
       - name: Determine npm dist-tag
         id: dist_tag
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
           if [[ "$VERSION" == *"-alpha"* ]] || [[ "$VERSION" == *"-beta"* ]] || [[ "$VERSION" == *"-rc"* ]]; then
             echo "tag=next" >> $GITHUB_OUTPUT
             echo "prerelease=true" >> $GITHUB_OUTPUT
@@ -69,6 +95,15 @@ jobs:
             echo "prerelease=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Create and push release tag
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "v$VERSION" -m "Release v$VERSION"
+          git push origin "v$VERSION"
+
       - name: Publish to npm
         run: npm run release:publish -- --tag ${{ steps.dist_tag.outputs.tag }}
         env:
@@ -76,8 +111,9 @@ jobs:
 
       - name: Extract changelog notes
         id: changelog
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
           NOTES=$(awk "/^## \[$VERSION\]/{found=1; next} /^## \[/{if(found) exit} found{print}" packages/core/CHANGELOG.md)
           echo "notes<<EOF" >> $GITHUB_OUTPUT
           echo "$NOTES" >> $GITHUB_OUTPUT
@@ -86,5 +122,6 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
+          tag_name: v${{ steps.version.outputs.version }}
           prerelease: ${{ steps.dist_tag.outputs.prerelease == 'true' }}
           body: ${{ steps.changelog.outputs.notes }}
