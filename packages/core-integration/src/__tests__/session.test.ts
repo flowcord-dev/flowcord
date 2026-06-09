@@ -1,15 +1,15 @@
 import { ButtonStyle, EmbedBuilder } from 'discord.js';
 
 import {
-  goTo,
-  goBack,
   closeMenu,
+  goBack,
+  goTo,
   guard,
+  MenuBuilder,
   pipeline,
-} from '../../action';
-import type { MenuSessionLike } from '../../context/MenuContext';
-import { MenuBuilder } from '../../menu/MenuBuilder';
-import { MenuHarness } from '../MenuHarness';
+  type MenuSessionLike,
+} from '@flowcord/core';
+import { MenuHarness } from '@flowcord/testing';
 
 // ---------------------------------------------------------------------------
 // Menu factories

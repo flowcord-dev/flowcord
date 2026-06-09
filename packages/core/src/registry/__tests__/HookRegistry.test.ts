@@ -1,6 +1,6 @@
 import { HookRegistry } from '../HookRegistry';
 import { LifecycleManager } from '../../lifecycle/LifecycleManager';
-import { mockMenuContext } from '../../testing';
+import { mockMenuContext } from '@flowcord/core/mocks';
 
 describe('HookRegistry', () => {
   describe('register / getHooks', () => {

@@ -1,9 +1,7 @@
 import { ButtonStyle } from 'discord.js';
 
-import { goTo } from '../../action';
-import type { MenuSessionLike } from '../../context/MenuContext';
-import { MenuBuilder } from '../../menu/MenuBuilder';
-import { MenuHarness } from '../MenuHarness';
+import { goTo, MenuBuilder, type MenuSessionLike } from '@flowcord/core';
+import { MenuHarness } from '@flowcord/testing';
 
 describe('hook lifecycle', () => {
   it('fires setup → onEnter → beforeRender → afterRender on initial render', async () => {

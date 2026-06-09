@@ -8,7 +8,8 @@
   },
   "include": [
     "src/**/*.test.ts",
-    "src/**/__tests__/**/*.ts"
+    "src/**/__tests__/**/*.ts",
+    "jest.setup.ts"
   ],
   "references": [{ "path": "./tsconfig.lib.json" }]
 }

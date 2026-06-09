@@ -1,9 +1,7 @@
 import { ButtonStyle } from 'discord.js';
 
-import { goTo, goBack, closeMenu } from '../../action';
-import type { MenuSessionLike } from '../../context/MenuContext';
-import { MenuBuilder } from '../../menu/MenuBuilder';
-import { MenuHarness } from '../MenuHarness';
+import { closeMenu, goBack, goTo, MenuBuilder, type MenuSessionLike } from '@flowcord/core';
+import { MenuHarness } from '@flowcord/testing';
 
 describe('layout mode rendering', () => {
   it('layout menu payload has mode=layout and layoutComponents', async () => {

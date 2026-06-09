@@ -1,22 +1,22 @@
 import { ButtonStyle } from 'discord.js';
 import type { APIEmbed } from 'discord-api-types/v10';
 
-import type {
-  NormalizedComponentInteraction,
-  NormalizedModalSubmission,
-  NormalizedRenderPayload,
-  NormalizedTerminalPayload,
-} from '../adapter/types';
-import { ComponentIdManager } from '../components/ComponentIdManager';
-import { MenuEngine } from '../engine/MenuEngine';
-import type { CreateMenuDefinitionFn } from '../registry/MenuRegistry';
-import { EventLog } from '../tracing/EventLog';
-import type { CreateTestSessionOptions } from './createTestSession';
+import {
+  ComponentIdManager,
+  EventLog,
+  MenuEngine,
+  type CreateMenuDefinitionFn,
+  type NormalizedComponentInteraction,
+  type NormalizedModalSubmission,
+  type NormalizedRenderPayload,
+  type NormalizedTerminalPayload,
+} from '@flowcord/core';
 import {
   mockClient,
   mockCommandInteraction,
   mockMessage,
-} from './mocks';
+} from '@flowcord/core/mocks';
+import type { CreateTestSessionOptions } from './createTestSession';
 import { SimulatedAdapter } from './SimulatedAdapter';
 
 export type MenuHarnessOptions = CreateTestSessionOptions;

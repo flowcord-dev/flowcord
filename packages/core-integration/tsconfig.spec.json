@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./out-tsc/spec",
+    "rootDir": ".",
+    "types": ["jest", "node"],
+    // ts-jest runs transpile-only here (these tests load core's source from
+    // outside this project's rootDir, which a full type-check would reject).
+    "isolatedModules": true,
+    "tsBuildInfoFile": "out-tsc/spec/tsconfig.spec.tsbuildinfo"
+  },
+  "include": [
+    "src/**/*.test.ts",
+    "src/**/__tests__/**/*.ts",
+    "jest.setup.ts"
+  ],
+  "references": [
+    { "path": "../core/tsconfig.lib.json" },
+    { "path": "../testing/tsconfig.lib.json" }
+  ]
+}

@@ -1,5 +1,5 @@
 import { MenuBuilder } from '../MenuBuilder';
-import { mockMenuSessionLike } from '../../testing';
+import { mockMenuSessionLike } from '@flowcord/core/mocks';
 
 // ---------------------------------------------------------------------------
 // Helpers

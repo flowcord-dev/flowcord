@@ -4,7 +4,7 @@ import {
   mockClient,
   mockCommandInteraction,
   mockComponentInteraction,
-} from '../testing';
+} from '@flowcord/core/mocks';
 
 // ---------------------------------------------------------------------------
 // Configuration

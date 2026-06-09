@@ -11,9 +11,9 @@
  * - endPromise resolves after sendTerminalPayload() is called.
  * - All normalized payloads are appended to renders[] / terminals[] for assertions.
  */
-import type { FlowCordAdapter } from '../adapter/FlowCordAdapter';
 import type {
   AwaitOptions,
+  FlowCordAdapter,
   NormalizedComponentInteraction,
   NormalizedMessage,
   NormalizedModal,
@@ -21,8 +21,8 @@ import type {
   NormalizedRenderPayload,
   NormalizedTerminalPayload,
   NormalizedTerminalReason,
-} from '../adapter/types';
-import type { RenderMode } from '../types/common';
+  RenderMode,
+} from '@flowcord/core';
 
 /** Thrown when an InteractionQueue times out waiting for an item. */
 export class SimulatedTimeoutError extends Error {

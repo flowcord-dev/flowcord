@@ -110,11 +110,12 @@ export type {
   NormalizedRenderBehavior,
   NormalizedRenderPayload,
   NormalizedTerminalPayload,
+  NormalizedTerminalReason,
 } from './adapter';
 
-// Tracing (production — NavigationTracer is enabled via MenuEngine config)
-export { NavigationTracer } from './tracing';
-export type { NavigationEvent } from './tracing';
+// Tracing
+export { NavigationTracer, EventLog } from './tracing';
+export type { NavigationEvent, SessionEvent } from './tracing';
 
 // Types
 export type {

@@ -1,3 +1,7 @@
+// These mocks use jest.fn(); core's lib build (tsconfig.lib.json) only includes
+// "node" types, so this pulls in jest's globals for this file alone — narrower
+// than adding "jest" to the whole lib build.
+/// <reference types="jest" />
 import type {
   ChatInputCommandInteraction,
   Client,

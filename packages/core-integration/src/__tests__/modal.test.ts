@@ -8,9 +8,8 @@ import {
   TextInputStyle,
 } from 'discord.js';
 
-import type { MenuSessionLike } from '../../context/MenuContext';
-import { MenuBuilder } from '../../menu/MenuBuilder';
-import { MenuHarness } from '../MenuHarness';
+import { MenuBuilder, type MenuSessionLike } from '@flowcord/core';
+import { MenuHarness } from '@flowcord/testing';
 
 const OPEN_MODAL_BTN = 'open-modal';
 const MODAL_ID = 'my-modal';

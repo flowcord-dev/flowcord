@@ -1,4 +1,4 @@
-import { MenuHarness } from './src/testing/MenuHarness';
+import { MenuHarness } from './src/MenuHarness';
 
 /**
  * After every test, end any MenuHarness instances that were not explicitly

@@ -6,9 +6,11 @@ Monorepo for **FlowCord** — a lifecycle-driven interactive menu framework for 
 
 | Package | Path | Description |
 |---|---|---|
-| [`@flowcord/core`](packages/core) | `packages/core` | The core menu framework (published to npm). |
+| [`@flowcord/core`](packages/core) | `packages/core` | The core menu framework (published to npm). Test mocks ship under the `@flowcord/core/mocks` subpath. |
+| [`@flowcord/testing`](packages/testing) | `packages/testing` | Test harness for FlowCord (published, version-locked with core). |
+| `@flowcord/core-integration` | `packages/core-integration` | Private project: behavior tests that exercise core through the harness. Not published. |
 
-> More packages (`@flowcord/testing`, docs site) land in upcoming Phase 0 work.
+> A docs site lands in upcoming Phase 0 work.
 
 ## Repo layout
 
@@ -27,9 +29,19 @@ npx nx run-many -t test       # run all tests
 npx nx run-many -t typecheck  # typecheck all packages
 npx nx run-many -t lint       # lint all packages
 
-npx nx build core             # build a single project
-npx nx test core              # test a single project
+npx nx build @flowcord/core   # build a single project
+npx nx test @flowcord/core    # test a single project
 ```
+
+Coverage:
+
+```bash
+npm run test:coverage                      # all projects, with coverage
+npm run test:cov -- @flowcord/testing      # one project, with coverage
+
+# HTML report (per project): packages/<pkg>/coverage/lcov-report/index.html
+```
+
 
 Nx caches task results — re-running an unchanged target replays from cache.
 
