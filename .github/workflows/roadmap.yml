@@ -1,0 +1,150 @@
+name: Roadmap
+
+# Keeps the org roadmap project in sync with issue triage:
+#   - ensures every issue is added to the project (the project's built-in auto-add
+#     workflow is filtered to `is:issue`; this add is the idempotent belt-and-braces)
+#   - derives the "Goal" single-select field from the issue's milestone version:
+#     the goal is the release the version works toward — everything up to and
+#     including 0.1.0 targets "Beta Soft Launch", everything up to and including
+#     1.0.0 targets "Stable 1.0", and beyond that the next major boundary ("2.0",
+#     "3.0", ...). Issues without a milestone get "Triage".
+#
+# Requires:
+#   - PROJECTS_TOKEN secret: fine-grained PAT (org Projects: read/write +
+#     repo Issues: read) — GITHUB_TOKEN cannot write org-level Projects v2.
+#   - ROADMAP_PROJECT_NUMBER repository variable: the org project number.
+#
+# Milestone titles must be semver ("v0.2.0" or "0.2.0", prerelease suffixes OK);
+# non-semver milestones are skipped with a warning. If a derived goal has no
+# matching option on the Goal field yet (e.g. "2.0"), add the option in the
+# project settings — the workflow warns instead of guessing.
+
+on:
+  issues:
+    types: [opened, milestoned, demilestoned]
+
+permissions: {}
+
+jobs:
+  sync-goal:
+    name: Sync roadmap Goal field
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify PROJECTS_TOKEN is configured
+        env:
+          TOKEN_PRESENT: ${{ secrets.PROJECTS_TOKEN != '' }}
+        run: |
+          if [ "$TOKEN_PRESENT" != "true" ]; then
+            echo "The PROJECTS_TOKEN secret is missing. Create a fine-grained PAT (org Projects: read/write, repo Issues: read) and add it as a repository secret."
+            exit 1
+          fi
+
+      - name: Add issue to project and sync Goal
+        uses: actions/github-script@v7
+        env:
+          PROJECT_NUMBER: ${{ vars.ROADMAP_PROJECT_NUMBER }}
+        with:
+          github-token: ${{ secrets.PROJECTS_TOKEN }}
+          script: |
+            const projectNumber = Number(process.env.PROJECT_NUMBER);
+            if (!Number.isInteger(projectNumber) || projectNumber <= 0) {
+              core.setFailed('The ROADMAP_PROJECT_NUMBER repository variable is missing or not a positive integer. Set it to the roadmap project number (Settings -> Secrets and variables -> Actions -> Variables).');
+              return;
+            }
+
+            // Goal = the release this version works toward: the next major boundary
+            // at or above it, except everything up to and including 0.1.0 targets
+            // the beta soft launch. Returns null for non-semver milestone titles.
+            const goalFromMilestone = (title) => {
+              const match = /^v?(\d+)\.(\d+)\.(\d+)(?:-[0-9A-Za-z.-]+)?$/.exec(title.trim());
+              if (!match) return null;
+              const major = Number(match[1]);
+              const minor = Number(match[2]);
+              const patch = Number(match[3]);
+              if (major === 0 && (minor === 0 || (minor === 1 && patch === 0))) return 'Beta Soft Launch';
+              if (major === 0 || (major === 1 && minor === 0 && patch === 0)) return 'Stable 1.0';
+              const targetMajor = (minor === 0 && patch === 0) ? major : major + 1;
+              return `${targetMajor}.0`;
+            };
+
+            const issue = context.payload.issue;
+            const milestone = issue.milestone;
+            let goalName = 'Triage';
+            if (milestone) {
+              goalName = goalFromMilestone(milestone.title);
+              if (!goalName) {
+                core.warning(`Milestone "${milestone.title}" is not a semver version — leaving the Goal field unchanged.`);
+              }
+            }
+
+            try {
+              const projectResult = await github.graphql(`
+                query($org: String!, $number: Int!) {
+                  organization(login: $org) {
+                    projectV2(number: $number) {
+                      id
+                      field(name: "Goal") {
+                        ... on ProjectV2SingleSelectField {
+                          id
+                          options { id name }
+                        }
+                      }
+                    }
+                  }
+                }
+              `, { org: context.repo.owner, number: projectNumber });
+
+              const project = projectResult.organization.projectV2;
+              if (!project) {
+                core.setFailed(`Org project #${projectNumber} was not found. Check the ROADMAP_PROJECT_NUMBER variable and the PROJECTS_TOKEN permissions.`);
+                return;
+              }
+
+              const addResult = await github.graphql(`
+                mutation($projectId: ID!, $contentId: ID!) {
+                  addProjectV2ItemById(input: { projectId: $projectId, contentId: $contentId }) {
+                    item { id }
+                  }
+                }
+              `, { projectId: project.id, contentId: issue.node_id });
+              const itemId = addResult.addProjectV2ItemById.item.id;
+              core.info(`Issue #${issue.number} is on project #${projectNumber} (item ${itemId}).`);
+
+              if (!goalName) return;
+
+              const goalField = project.field;
+              if (!goalField || !goalField.options) {
+                core.warning('No single-select "Goal" field found on the project — skipping the Goal update.');
+                return;
+              }
+
+              const wanted = goalName.toLowerCase();
+              const option =
+                goalField.options.find((candidate) => candidate.name.toLowerCase() === wanted) ||
+                goalField.options.find((candidate) => candidate.name.toLowerCase().includes(wanted));
+              if (!option) {
+                core.warning(`No "${goalName}" option on the Goal field — add it in the project settings, then re-trigger by re-assigning the milestone.`);
+                return;
+              }
+
+              await github.graphql(`
+                mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+                  updateProjectV2ItemFieldValue(input: {
+                    projectId: $projectId,
+                    itemId: $itemId,
+                    fieldId: $fieldId,
+                    value: { singleSelectOptionId: $optionId }
+                  }) {
+                    projectV2Item { id }
+                  }
+                }
+              `, { projectId: project.id, itemId, fieldId: goalField.id, optionId: option.id });
+              core.info(`Set Goal = "${option.name}" on issue #${issue.number}.`);
+            } catch (err) {
+              const message = err instanceof Error ? err.message : String(err);
+              if (err.status === 401 || /bad credentials/i.test(message)) {
+                core.setFailed('PROJECTS_TOKEN was rejected (expired or revoked?). Rotate the fine-grained PAT and update the repository secret.');
+                return;
+              }
+              throw err;
+            }
