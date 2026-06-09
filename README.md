@@ -33,6 +33,16 @@ npx nx build @flowcord/core   # build a single project
 npx nx test @flowcord/core    # test a single project
 ```
 
+Coverage:
+
+```bash
+npm run test:coverage                      # all projects, with coverage
+npm run test:cov -- @flowcord/testing      # one project, with coverage
+
+# HTML report (per project): packages/<pkg>/coverage/lcov-report/index.html
+```
+
+
 Nx caches task results — re-running an unchanged target replays from cache.
 
 ## Releasing
