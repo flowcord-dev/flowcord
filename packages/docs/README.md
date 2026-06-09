@@ -1,42 +1,26 @@
-# Website
+# @flowcord/docs
 
-This website is built using [Docusaurus](https://docusaurus.io/), a modern static website generator.
+Documentation site for [FlowCord](https://flowcord.dev), built with [Docusaurus](https://docusaurus.io/).
 
-## Installation
+## Development
 
-```bash
-npm install
-```
-
-## Local Development
+Run from the **monorepo root**:
 
 ```bash
-npm run start
+npm run docs:start        # start local dev server
+npm run build -w @flowcord/docs   # production build
 ```
 
-This command starts a local development server and opens up a browser window. Most changes are reflected live without having to restart the server.
-
-## Build
-
-```bash
-npm run build
-```
-
-This command generates static content into the `build` directory and can be served using any static contents hosting service.
+The dev server is available at `http://localhost:3000` and hot-reloads on content changes.
 
 ## Deployment
 
-This site is configured to deploy to the custom root domain `https://flowcord.dev/`.
-Deployments are handled by GitHub Actions from pushes to `master`.
-The workflow builds the site and publishes the `build` artifact to GitHub Pages.
+Deployments are handled automatically by `.github/workflows/deploy-docs.yml` on every push to `master` that touches `packages/docs/`. The workflow builds the site and publishes the `packages/docs/build` artifact to GitHub Pages at [flowcord.dev](https://flowcord.dev).
 
-### Triggering deployment
+You can also trigger a deploy manually via **Actions → Deploy Docs to GitHub Pages → Run workflow**.
 
-1. Merge your changes into `master`.
-2. The workflow in `.github/workflows/deploy-pages.yml` runs automatically.
-3. GitHub Pages serves the new build when the workflow completes.
+## Notes
 
-### Notes
-
-- `static/CNAME` is committed so the custom domain is preserved in each build.
-- You can still run `npm run build` locally to verify output before merging.
+- `static/CNAME` ensures the `flowcord.dev` custom domain is preserved in every build output.
+- This package is private and never published to npm.
+- Docs are intentionally excluded from `nx run-many` build/typecheck targets — the deploy workflow is the sole CI hook.
