@@ -20,7 +20,8 @@
     "test:cov": "nx run-many -t test --coverage -p",
     "lint": "nx run-many -t lint",
     "sync:check": "nx sync:check",
-    "release:publish": "nx release publish"
+    "release:publish": "nx release publish",
+    "docs:start": "npm run start -w @flowcord/docs"
   },
   "engines": {
     "node": ">=18.0.0"
