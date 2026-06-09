@@ -5,13 +5,11 @@ import {
   ComponentIdManager,
   EventLog,
   MenuEngine,
-} from '@flowcord/core';
-import type {
-  CreateMenuDefinitionFn,
-  NormalizedComponentInteraction,
-  NormalizedModalSubmission,
-  NormalizedRenderPayload,
-  NormalizedTerminalPayload,
+  type CreateMenuDefinitionFn,
+  type NormalizedComponentInteraction,
+  type NormalizedModalSubmission,
+  type NormalizedRenderPayload,
+  type NormalizedTerminalPayload,
 } from '@flowcord/core';
 import {
   mockClient,

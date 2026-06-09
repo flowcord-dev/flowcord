@@ -4,8 +4,7 @@ import {
   StringSelectMenuOptionBuilder,
 } from 'discord.js';
 
-import type { MenuSessionLike } from '@flowcord/core';
-import { MenuBuilder } from '@flowcord/core';
+import { MenuBuilder, type MenuSessionLike } from '@flowcord/core';
 import { MenuHarness } from '@flowcord/testing';
 
 function buildSelectMenu() {

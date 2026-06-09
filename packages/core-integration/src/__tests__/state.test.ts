@@ -1,8 +1,6 @@
 import { ButtonStyle, EmbedBuilder } from 'discord.js';
 
-import { goTo } from '@flowcord/core';
-import type { MenuSessionLike } from '@flowcord/core';
-import { MenuBuilder } from '@flowcord/core';
+import { goTo, MenuBuilder, type MenuSessionLike } from '@flowcord/core';
 import { MenuHarness } from '@flowcord/testing';
 
 // Reusable detail menu: returnable with a Back button and fallback to 'main'.

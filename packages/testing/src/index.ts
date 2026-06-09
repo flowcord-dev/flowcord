@@ -26,5 +26,4 @@ export {
   mockModalSubmitInteraction,
 } from '@flowcord/core/mocks';
 // Re-exported from core for convenience: EventLog is the harness's tracing sink.
-export { EventLog } from '@flowcord/core';
-export type { SessionEvent } from '@flowcord/core';
+export { EventLog, type SessionEvent } from '@flowcord/core';

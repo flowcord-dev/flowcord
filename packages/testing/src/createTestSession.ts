@@ -1,5 +1,9 @@
-import { EventLog, MenuEngine } from '@flowcord/core';
-import type { BehaviorPolicy, CreateMenuDefinitionFn } from '@flowcord/core';
+import {
+  EventLog,
+  MenuEngine,
+  type BehaviorPolicy,
+  type CreateMenuDefinitionFn,
+} from '@flowcord/core';
 import { mockClient, mockCommandInteraction } from '@flowcord/core/mocks';
 import { SimulatedAdapter } from './SimulatedAdapter';
 
