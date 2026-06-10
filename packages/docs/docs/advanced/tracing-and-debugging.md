@@ -118,4 +118,4 @@ The `openModal()` action was used in a button that was already deferred. Use `op
 
 ## Session internals
 
-For a deeper look at how sessions work — the render-await-dispatch loop, in-memory session lifecycle, and what that means for bot restarts and scalability — see [ARCHITECTURE.md](https://github.com/flowcord-dev/flowcord-core/blob/main/ARCHITECTURE.md) in the flowcord-core repository.
+For a deeper look at how sessions work — the render-await-dispatch loop, in-memory session lifecycle, and what that means for bot restarts and scalability — see [ARCHITECTURE.md](https://github.com/flowcord-dev/flowcord/blob/main/ARCHITECTURE.md) in the flowcord repository.

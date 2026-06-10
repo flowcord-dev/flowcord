@@ -110,4 +110,4 @@ Multiple users can have active sessions simultaneously. Each session is independ
 
 ## For deeper internals
 
-The render → await → dispatch loop, component ID encoding, and how the interaction is acknowledged at each stage are covered in detail in [ARCHITECTURE.md](https://github.com/flowcord-dev/flowcord-core/blob/master/ARCHITECTURE.md) in the flowcord-core repository.
+The render → await → dispatch loop, component ID encoding, and how the interaction is acknowledged at each stage are covered in detail in [ARCHITECTURE.md](https://github.com/flowcord-dev/flowcord/blob/master/ARCHITECTURE.md) in the flowcord repository.

@@ -69,7 +69,7 @@ Link buttons navigate the user to a URL without sending an interaction to your b
 {
   label: 'View on GitHub',
   style: ButtonStyle.Link,
-  url: 'https://github.com/flowcord-dev/flowcord-core',
+  url: 'https://github.com/flowcord-dev/flowcord',
 }
 ```
 

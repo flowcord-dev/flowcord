@@ -15,7 +15,7 @@ const config: Config = {
   baseUrl: '/',
 
   organizationName: 'flowcord-dev',
-  projectName: 'flowcord-core',
+  projectName: 'flowcord',
 
   onBrokenLinks: 'throw',
 
@@ -31,7 +31,7 @@ const config: Config = {
         docs: {
           sidebarPath: './sidebars.ts',
           editUrl:
-            'https://github.com/flowcord-dev/flowcord-core/tree/master/packages/docs/',
+            'https://github.com/flowcord-dev/flowcord/tree/master/packages/docs/',
         },
         blog: false,
         theme: {
@@ -45,7 +45,7 @@ const config: Config = {
     announcementBar: {
       id: 'alpha',
       content:
-        '⚠️ FlowCord is currently in alpha — APIs may change between releases. See the <a href="https://github.com/flowcord-dev/flowcord-core/releases" target="_blank" rel="noopener noreferrer">changelog</a>.',
+        '⚠️ FlowCord is currently in alpha — APIs may change between releases. See the <a href="https://github.com/flowcord-dev/flowcord/releases" target="_blank" rel="noopener noreferrer">changelog</a>.',
       backgroundColor: '#f0ad4e',
       textColor: '#1a1a1a',
       isCloseable: true,
@@ -79,7 +79,7 @@ const config: Config = {
           position: 'right',
         },
         {
-          href: 'https://github.com/flowcord-dev/flowcord-core',
+          href: 'https://github.com/flowcord-dev/flowcord',
           label: 'GitHub',
           position: 'right',
         },
@@ -107,7 +107,7 @@ const config: Config = {
           items: [
             {
               label: 'GitHub',
-              href: 'https://github.com/flowcord-dev/flowcord-core',
+              href: 'https://github.com/flowcord-dev/flowcord',
             },
             {
               label: 'npm',
