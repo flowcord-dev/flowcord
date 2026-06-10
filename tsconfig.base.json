@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "lib": ["ES2020"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "composite": true,
+    "forceConsistentCasingInFileNames": true,
+    "paths": {
+      "@flowcord/core": ["./packages/core/src/index.ts"],
+      "@flowcord/core/mocks": ["./packages/core/src/mocks/index.ts"],
+      "@flowcord/testing": ["./packages/testing/src/index.ts"]
+    }
+  }
+}

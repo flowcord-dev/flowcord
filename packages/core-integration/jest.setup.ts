@@ -1,0 +1,11 @@
+import { MenuHarness } from '@flowcord/testing';
+
+/**
+ * After every test, end any MenuHarness instances that were not explicitly
+ * closed. This covers sessions left open by tests that rely on natural session
+ * termination (e.g. closeMenu() inside a handler) as well as tests that
+ * simply forgot harness.end(). No-op when no harnesses are active.
+ */
+afterEach(async () => {
+  await MenuHarness.endAll();
+});

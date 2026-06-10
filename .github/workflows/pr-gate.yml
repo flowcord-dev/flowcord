@@ -3,7 +3,7 @@ name: PR Gate
 on:
   pull_request:
     types: [opened, reopened, edited]
-    branches: [master, develop]
+    branches: [master, develop, 'epic/**']
 
 jobs:
   check-linked-issue:
@@ -21,7 +21,7 @@ jobs:
             const owner = context.repo.owner;
             const repo = context.repo.repo;
 
-            const APPROVED_LABELS = ['feature: accepted', 'bug: confirmed'];
+            const APPROVED_LABELS = ['feature: accepted', 'bug: confirmed', 'release'];
 
             const close = async (message) => {
               await github.rest.issues.createComment({
@@ -33,11 +33,10 @@ jobs:
               core.setFailed('PR closed: ' + message.split('\n')[0]);
             };
 
-            // Use GitHub's own closing-issue parser via GraphQL — more reliable than
-            // body regex and handles all keyword variants (close, closes, closed, fix,
-            // fixes, fixed, resolve, resolves, resolved). Note: linking an issue via
-            // the sidebar "Development" section does NOT count; the keyword must appear
-            // in the PR description text.
+            // Primary: GitHub's own closing-issue parser via GraphQL — handles all keyword
+            // variants (close/closes/closed, fix/fixes/fixed, resolve/resolves/resolved).
+            // Note: linking an issue via the sidebar "Development" section does NOT count;
+            // the keyword must appear in the PR description text.
             const result = await github.graphql(`
               query($owner: String!, $repo: String!, $number: Int!) {
                 repository(owner: $owner, name: $repo) {
@@ -55,7 +54,27 @@ jobs:
               }
             `, { owner, repo, number: prNumber });
 
-            const closingIssues = result.repository.pullRequest.closingIssuesReferences.nodes;
+            let closingIssues = result.repository.pullRequest.closingIssuesReferences.nodes
+              .map((node) => ({ number: node.number, labels: node.labels.nodes.map((lbl) => lbl.name) }));
+
+            // Fallback: GitHub only populates closingIssuesReferences for PRs targeting the
+            // repository's DEFAULT branch. For PRs into other bases (e.g. epic/** integration
+            // branches), parse the closing keywords from the PR body and fetch labels directly.
+            if (closingIssues.length === 0) {
+              const body = context.payload.pull_request.body || '';
+              const keyword = /\b(?:close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\b\s*:?\s+#(\d+)/gi;
+              const numbers = [...new Set([...body.matchAll(keyword)].map((match) => Number(match[1])))];
+              for (const number of numbers) {
+                try {
+                  const { data: ref } = await github.rest.issues.get({ owner, repo, issue_number: number });
+                  if (ref.pull_request) continue; // a PR, not an issue
+                  closingIssues.push({ number, labels: ref.labels.map((lbl) => (typeof lbl === 'string' ? lbl : lbl.name)) });
+                } catch (err) {
+                  const message = err instanceof Error ? err.message : String(err);
+                  core.warning(`Could not fetch referenced issue #${number}: ${message}`);
+                }
+              }
+            }
 
             if (closingIssues.length === 0) {
               await close(
@@ -71,15 +90,9 @@ jobs:
               return;
             }
 
-            let approved = false;
-
-            for (const issue of closingIssues) {
-              const labels = issue.labels.nodes.map(l => l.name);
-              if (APPROVED_LABELS.some(l => labels.includes(l))) {
-                approved = true;
-                break;
-              }
-            }
+            const approved = closingIssues.some(
+              (issue) => APPROVED_LABELS.some((label) => issue.labels.includes(label))
+            );
 
             if (!approved) {
               await close(

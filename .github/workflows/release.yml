@@ -1,54 +1,110 @@
 name: Release
 
+# Manually triggered release. The version bump + hand-written changelog arrive on
+# master via the release PR (develop -> master), so this workflow never commits to
+# master — it only verifies, tags, publishes, and creates the GitHub Release.
+#
+# The `release` Environment (Settings -> Environments) restricts deployments to the
+# master branch, replacing the old tag-ancestry guard. npm Trusted Publishing should
+# be pinned to this workflow + environment for both packages.
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
     name: Build, Test & Publish
     runs-on: ubuntu-latest
+    environment: release
     permissions:
-      contents: write # needed to create GitHub Releases
-      id-token: write # needed for npm OIDC publishing
+      contents: write # needed to push the release tag and create GitHub Releases
+      id-token: write # needed for npm OIDC Trusted Publishing + provenance
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # needed to check branch ancestry
 
-      - name: Verify tag is on master
+      - name: Read version
+        id: version
         run: |
-          git fetch origin master
-          if ! git merge-base --is-ancestor ${{ github.sha }} origin/master; then
-            echo "Tag does not point to a commit on master. Aborting release."
+          VERSION=$(node -p "require('./packages/core/package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Releasing v$VERSION"
+
+      - name: Check publish and tag state
+        id: guards
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          CORE_PUBLISHED=false
+          TESTING_PUBLISHED=false
+          if npm view "@flowcord/core@$VERSION" version > /dev/null 2>&1; then CORE_PUBLISHED=true; fi
+          if npm view "@flowcord/testing@$VERSION" version > /dev/null 2>&1; then TESTING_PUBLISHED=true; fi
+
+          # Partial publish (one package but not the other) means something went badly wrong.
+          if [[ "$CORE_PUBLISHED" != "$TESTING_PUBLISHED" ]]; then
+            echo "Partial publish detected: @flowcord/core published=$CORE_PUBLISHED, @flowcord/testing published=$TESTING_PUBLISHED. Manual intervention required."
             exit 1
           fi
+
+          # Both published — this is a retry after a post-publish failure (tag or release).
+          # Skip republishing but still ensure the tag and GitHub Release are created.
+          if $CORE_PUBLISHED; then
+            echo "Both packages already on npm — skipping publish (retry mode)."
+          fi
+          echo "all_published=$CORE_PUBLISHED" >> $GITHUB_OUTPUT
+
+          TAG_EXISTS=false
+          if git ls-remote --exit-code origin "refs/tags/v$VERSION" > /dev/null 2>&1; then TAG_EXISTS=true; fi
+          if $TAG_EXISTS; then
+            echo "Tag v$VERSION already exists — skipping tag creation."
+          fi
+          echo "tag_exists=$TAG_EXISTS" >> $GITHUB_OUTPUT
+
+          # Fresh run with no version bump: both unpublished and no tag is the expected state.
+          # If somehow a different version's tag was pushed without a release, that's caught above.
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
+          cache: 'npm'
+
+      - name: Upgrade npm for OIDC Trusted Publishing
+        # OIDC Trusted Publishing requires npm >= 11.5.1. Node bundles an older npm
+        # (10.x on 20/22, an earlier 11.x on 24) that may silently skip the OIDC token
+        # exchange and fail publish with E404 while still signing provenance. Pin an
+        # exact, known-good npm rather than relying on the bundled version (bump deliberately).
+        run: |
+          npm install -g npm@11.16.0 --ignore-scripts
+          npm -v
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
 
-      - name: Typecheck
-        run: npm run typecheck
+      - name: Verify TypeScript project references are in sync
+        run: npm run sync:check
+
+      - name: Typecheck & Lint
+        run: |
+          npm run typecheck
+          npm run lint
 
       - name: Test
-        run: npm test
+        run: npm run test:coverage
 
       - name: Build
         run: npm run build
 
       - name: Determine npm dist-tag
         id: dist_tag
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
           if [[ "$VERSION" == *"-alpha"* ]] || [[ "$VERSION" == *"-beta"* ]] || [[ "$VERSION" == *"-rc"* ]]; then
             echo "tag=next" >> $GITHUB_OUTPUT
             echo "prerelease=true" >> $GITHUB_OUTPUT
@@ -57,20 +113,35 @@ jobs:
             echo "prerelease=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Create and push release tag
+        if: steps.guards.outputs.tag_exists != 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "v$VERSION" -m "Release v$VERSION"
+          git push origin "v$VERSION"
+
       - name: Publish to npm
-        run: npm publish --provenance --tag ${{ steps.dist_tag.outputs.tag }}
+        if: steps.guards.outputs.all_published != 'true'
+        run: npm run release:publish -- --tag ${{ steps.dist_tag.outputs.tag }}
+        env:
+          NPM_CONFIG_PROVENANCE: 'true' # publish with provenance via OIDC
 
       - name: Extract changelog notes
         id: changelog
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          NOTES=$(awk "/^## \[$VERSION\]/{found=1; next} /^## \[/{if(found) exit} found{print}" CHANGELOG.md)
+          NOTES=$(awk "/^## \[$VERSION\]/{found=1; next} /^## \[/{if(found) exit} found{print}" packages/core/CHANGELOG.md)
           echo "notes<<EOF" >> $GITHUB_OUTPUT
           echo "$NOTES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
+          tag_name: v${{ steps.version.outputs.version }}
           prerelease: ${{ steps.dist_tag.outputs.prerelease == 'true' }}
           body: ${{ steps.changelog.outputs.notes }}
