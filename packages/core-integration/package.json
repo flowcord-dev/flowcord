@@ -1,6 +1,6 @@
 {
   "name": "@flowcord/core-integration",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.2",
   "private": true,
   "description": "Integration (behavior) tests for @flowcord/core — exercises core through @flowcord/testing's harness",
   "scripts": {

@@ -1,10 +1,11 @@
 name: Open Release PR
 
 # Triggered when a release issue is opened (via the release issue template, which
-# auto-applies the `release` label). Calculates the next version, bumps
-# packages/core and packages/testing, converts ## [Unreleased] in the core
-# CHANGELOG to the new version section, pushes a release/* branch, updates the
-# issue title, and opens a PR to develop for the maintainer to fill in and merge.
+# auto-applies the `release` label). Calculates the next version, bumps every
+# workspace package.json (plus internal dependency pins and the lockfile),
+# converts ## [Unreleased] in the core CHANGELOG to the new version section,
+# pushes a release/* branch, updates the issue title, and opens a PR to develop
+# for the maintainer to fill in and merge.
 
 on:
   issues:
@@ -105,19 +106,40 @@ jobs:
           echo "Current: $CURRENT  →  Next: $NEXT"
 
       - name: Bump package versions
+        # Bumps every workspace package.json (not just the published ones) so all
+        # versions stay in parity, and rewrites the exact internal dependency pins
+        # (@flowcord/core, @flowcord/testing) — npm workspaces only link a local
+        # package when its version satisfies the spec, so stale pins would make
+        # npm ci fall back to the registry and 404 on unpublished versions.
         env:
           VERSION: ${{ steps.next_version.outputs.version }}
         run: |
           node -e "
-            const { readFileSync, writeFileSync } = require('fs');
+            const { readFileSync, writeFileSync, readdirSync, existsSync } = require('fs');
+            const INTERNAL_PACKAGES = ['@flowcord/core', '@flowcord/testing'];
             const bump = (path) => {
               const pkg = JSON.parse(readFileSync(path, 'utf8'));
               pkg.version = '$VERSION';
+              for (const section of ['dependencies', 'devDependencies', 'peerDependencies']) {
+                const deps = pkg[section];
+                if (!deps) continue;
+                for (const depName of INTERNAL_PACKAGES) {
+                  if (deps[depName]) deps[depName] = '$VERSION';
+                }
+              }
               writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n');
             };
-            bump('packages/core/package.json');
-            bump('packages/testing/package.json');
+            bump('package.json');
+            for (const dirName of readdirSync('packages')) {
+              const manifest = 'packages/' + dirName + '/package.json';
+              if (existsSync(manifest)) bump(manifest);
+            }
           "
+
+      - name: Update lockfile
+        # npm ci requires package-lock.json to agree with every package.json,
+        # so regenerate it for the bumped versions and pins.
+        run: npm install --package-lock-only --ignore-scripts
 
       - name: Update CHANGELOG
         env:
@@ -149,7 +171,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
-          git add packages/core/package.json packages/testing/package.json packages/core/CHANGELOG.md
+          git add package.json package-lock.json packages/*/package.json packages/core/CHANGELOG.md
           git commit -m "chore(release): bump to v$VERSION"
           git push origin "$BRANCH"
 
