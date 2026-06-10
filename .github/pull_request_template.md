@@ -16,6 +16,6 @@ Closes #
 
 - [ ] I have read [CONTRIBUTING.md](../CONTRIBUTING.md)
 - [ ] This PR references an issue with the appropriate approval label (`bug: confirmed` or `feature: accepted`)
-- [ ] Tests are included or existing tests cover this change
+- [ ] Tests are unneeded, included, or existing tests cover this change
 - [ ] I used AI assistance to write some or all of this code
 - [ ] I have read every line of this PR and can independently explain each architectural decision without AI assistance
