@@ -38,6 +38,17 @@ jobs:
       - name: Test (with coverage)
         run: npm run test:coverage
 
+      - name: Normalize core-integration coverage paths for SonarCloud
+        # The core-integration jest config runs with cwd packages/core-integration, so istanbul
+        # emits SF paths like ../core/src/Foo.ts (relative to that directory). SonarCloud's
+        # SF path resolution base is not guaranteed to be the projectBaseDir, so rewrite them to
+        # absolute paths which Sonar handles unambiguously.
+        run: |
+          LCOV=packages/core-integration/coverage/lcov.info
+          if [ -f "$LCOV" ]; then
+            sed -i "s|SF:\.\./core/|SF:${GITHUB_WORKSPACE}/packages/core/|g" "$LCOV"
+          fi
+
       - name: SonarCloud Scan (core)
         if: github.actor != 'dependabot[bot]'
         uses: SonarSource/sonarqube-scan-action@713881670b6b3676cda39549040e2d88c70d582e # v8.2.0
