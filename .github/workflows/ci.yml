@@ -5,27 +5,64 @@ on:
     branches:
       - master
       - develop
+      - 'epic/**'
 
 jobs:
   check:
-    name: Typecheck & Test
+    name: Typecheck, Test & Lint
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
 
-      - name: Typecheck
-        run: npm run typecheck
+      - name: Verify TypeScript project references are in sync
+        run: npm run sync:check
 
-      - name: Test
-        run: npm test
+      - name: Typecheck & Lint
+        run: |
+          npm run typecheck
+          npm run lint
+
+      - name: Test (with coverage)
+        run: npm run test:coverage
+
+      - name: Normalize core-integration coverage paths for SonarCloud
+        # The core-integration jest config runs with cwd packages/core-integration, so istanbul
+        # emits SF paths like ../core/src/Foo.ts (relative to that directory). SonarCloud's
+        # SF path resolution base is not guaranteed to be the projectBaseDir, so rewrite them to
+        # absolute paths which Sonar handles unambiguously.
+        run: |
+          LCOV=packages/core-integration/coverage/lcov.info
+          if [ -f "$LCOV" ]; then
+            sed -i "s|SF:\.\./core/|SF:${GITHUB_WORKSPACE}/packages/core/|g" "$LCOV"
+          fi
+
+      - name: SonarCloud Scan (core)
+        if: github.actor != 'dependabot[bot]'
+        uses: SonarSource/sonarqube-scan-action@713881670b6b3676cda39549040e2d88c70d582e # v8.2.0
+        with:
+          projectBaseDir: packages/core
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: SonarCloud Scan (testing)
+        if: github.actor != 'dependabot[bot]'
+        uses: SonarSource/sonarqube-scan-action@713881670b6b3676cda39549040e2d88c70d582e # v8.2.0
+        with:
+          projectBaseDir: packages/testing
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

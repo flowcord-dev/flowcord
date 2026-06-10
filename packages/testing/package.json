@@ -1,0 +1,75 @@
+{
+  "name": "@flowcord/testing",
+  "version": "0.1.0-alpha.2",
+  "description": "Headless harness for simulating and testing discord.js component interactions (buttons, selects, and modals) built with FlowCord.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "clean": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "prepublishOnly": "nx build @flowcord/testing"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "next"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/flowcord-dev/flowcord.git",
+    "directory": "packages/testing"
+  },
+  "homepage": "https://github.com/flowcord-dev/flowcord/tree/master/packages/testing#readme",
+  "bugs": {
+    "url": "https://github.com/flowcord-dev/flowcord/issues"
+  },
+  "author": "Nicholas Bely",
+  "keywords": [
+    "discord",
+    "discord.js",
+    "discord-bot",
+    "menu",
+    "testing",
+    "test-harness",
+    "integration-testing",
+    "integration-tests",
+    "e2e",
+    "headless",
+    "simulator",
+    "mocks",
+    "flowcord"
+  ],
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "sideEffects": false,
+  "peerDependencies": {
+    "@flowcord/core": "0.1.0-alpha.2",
+    "discord.js": "^14.0.0"
+  },
+  "devDependencies": {
+    "@flowcord/core": "0.1.0-alpha.2",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "discord.js": "^14.0.0",
+    "eslint": "^8.57.0",
+    "jest": "^29.7.0",
+    "prettier": "^3.8.1",
+    "ts-jest": "^29.1.0",
+    "typescript": "^5.4.0"
+  }
+}

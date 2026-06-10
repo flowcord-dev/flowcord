@@ -1,0 +1,236 @@
+name: Open Release PR
+
+# Triggered when a release issue is opened (via the release issue template, which
+# auto-applies the `release` label). Calculates the next version, bumps every
+# workspace package.json (plus internal dependency pins and the lockfile),
+# converts ## [Unreleased] in every package CHANGELOG to the new version section,
+# pushes a release/* branch, updates the issue title, and opens a PR to develop
+# for the maintainer to fill in and merge.
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  open-release-pr:
+    name: Open release PR
+    if: contains(github.event.issue.labels.*.name, 'release')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Verify author has write access
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const author = context.payload.issue.user.login;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            let permission;
+            try {
+              const { data } = await github.rest.repos.getCollaboratorPermissionLevel({ owner, repo, username: author });
+              permission = data.permission;
+            } catch (err) {
+              permission = 'none';
+            }
+            if (permission !== 'write' && permission !== 'admin') {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: context.payload.issue.number,
+                body: `@${author} Release issues are for maintainers only. This issue has been closed automatically.`,
+              });
+              await github.rest.issues.update({
+                owner, repo, issue_number: context.payload.issue.number,
+                state: 'closed', state_reason: 'not_planned',
+              });
+              core.setFailed(`${author} does not have write access — issue closed.`);
+            }
+
+      - name: Checkout develop
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+          fetch-depth: 0
+
+      - name: Parse release type from issue body
+        id: release_type
+        env:
+          BODY: ${{ github.event.issue.body }}
+        run: |
+          # Issue forms render dropdowns as "### Release type" followed by a blank
+          # line and then the value — take the first non-empty line after the heading.
+          TYPE=$(echo "$BODY" | awk '/^### Release type/{found=1; next} found && NF {print; exit}' | tr -d '\r' | xargs)
+          if [[ "$TYPE" != "alpha" && "$TYPE" != "patch" && "$TYPE" != "minor" && "$TYPE" != "major" ]]; then
+            echo "Could not parse a valid release type from the issue body (got: '$TYPE'). Valid values: alpha, patch, minor, major."
+            exit 1
+          fi
+          echo "type=$TYPE" >> $GITHUB_OUTPUT
+
+      - name: Calculate next version
+        id: next_version
+        env:
+          RELEASE_TYPE: ${{ steps.release_type.outputs.type }}
+        run: |
+          CURRENT=$(node -p "require('./packages/core/package.json').version")
+          NEXT=$(node -e "
+            const current = '$CURRENT';
+            const type = '$RELEASE_TYPE';
+            const dash = current.indexOf('-');
+            const base = dash === -1 ? current : current.slice(0, dash);
+            const pre  = dash === -1 ? '' : current.slice(dash + 1);
+            const [major, minor, patch] = base.split('.').map(Number);
+
+            let next;
+            if (type === 'alpha') {
+              if (pre.startsWith('alpha.')) {
+                const num = Number(pre.split('.')[1]);
+                next = major + '.' + minor + '.' + patch + '-alpha.' + (num + 1);
+              } else {
+                // stable or other prerelease → bump patch and start alpha.1
+                next = major + '.' + minor + '.' + (patch + 1) + '-alpha.1';
+              }
+            } else if (type === 'patch') {
+              // from a prerelease: just drop the suffix (this IS the patch release)
+              next = pre ? base : major + '.' + minor + '.' + (patch + 1);
+            } else if (type === 'minor') {
+              next = major + '.' + (minor + 1) + '.0';
+            } else {
+              next = (major + 1) + '.0.0';
+            }
+            process.stdout.write(next);
+          ")
+          echo "version=$NEXT" >> $GITHUB_OUTPUT
+          echo "branch=release/v$NEXT" >> $GITHUB_OUTPUT
+          echo "Current: $CURRENT  →  Next: $NEXT"
+
+      - name: Bump package versions
+        # Bumps every workspace package.json (not just the published ones) so all
+        # versions stay in parity, and rewrites the exact internal dependency pins
+        # (@flowcord/core, @flowcord/testing) — npm workspaces only link a local
+        # package when its version satisfies the spec, so stale pins would make
+        # npm ci fall back to the registry and 404 on unpublished versions.
+        env:
+          VERSION: ${{ steps.next_version.outputs.version }}
+        run: |
+          node -e "
+            const { readFileSync, writeFileSync, readdirSync, existsSync } = require('fs');
+            const INTERNAL_PACKAGES = ['@flowcord/core', '@flowcord/testing'];
+            const bump = (path) => {
+              const pkg = JSON.parse(readFileSync(path, 'utf8'));
+              pkg.version = '$VERSION';
+              for (const section of ['dependencies', 'devDependencies', 'peerDependencies']) {
+                const deps = pkg[section];
+                if (!deps) continue;
+                for (const depName of INTERNAL_PACKAGES) {
+                  if (deps[depName]) deps[depName] = '$VERSION';
+                }
+              }
+              writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n');
+            };
+            bump('package.json');
+            for (const dirName of readdirSync('packages')) {
+              const manifest = 'packages/' + dirName + '/package.json';
+              if (existsSync(manifest)) bump(manifest);
+            }
+          "
+
+      - name: Update lockfile
+        # npm ci requires package-lock.json to agree with every package.json,
+        # so regenerate it for the bumped versions and pins.
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Update CHANGELOGs
+        env:
+          VERSION: ${{ steps.next_version.outputs.version }}
+        run: |
+          TODAY=$(date -u +%Y-%m-%d)
+          node -e "
+            const { readFileSync, writeFileSync, readdirSync, existsSync } = require('fs');
+            const changelogs = readdirSync('packages')
+              .map((dirName) => 'packages/' + dirName + '/CHANGELOG.md')
+              .filter((path) => existsSync(path));
+            if (changelogs.length === 0) {
+              console.error('No packages/*/CHANGELOG.md files found.');
+              process.exit(1);
+            }
+            for (const path of changelogs) {
+              const content = readFileSync(path, 'utf8');
+              if (!content.includes('## [Unreleased]')) {
+                console.error('No ## [Unreleased] section found in ' + path + ' — add one and re-trigger.');
+                process.exit(1);
+              }
+              // Insert the new versioned header immediately after ## [Unreleased]
+              // so that any content already under [Unreleased] moves under the new version.
+              const updated = content.replace(
+                '## [Unreleased]',
+                '## [Unreleased]\n\n## [$VERSION] - $TODAY'
+              );
+              writeFileSync(path, updated);
+            }
+          "
+
+      - name: Commit and push release branch
+        env:
+          BRANCH: ${{ steps.next_version.outputs.branch }}
+          VERSION: ${{ steps.next_version.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add package.json package-lock.json packages/*/package.json packages/*/CHANGELOG.md
+          git commit -m "chore(release): bump to v$VERSION"
+          git push origin "$BRANCH"
+
+      - name: Update issue title
+        uses: actions/github-script@v7
+        env:
+          VERSION: ${{ steps.next_version.outputs.version }}
+        with:
+          script: |
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              title: `Release v${process.env.VERSION}`,
+            });
+
+      - name: Open PR to develop
+        uses: actions/github-script@v7
+        env:
+          BRANCH: ${{ steps.next_version.outputs.branch }}
+          VERSION: ${{ steps.next_version.outputs.version }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        with:
+          script: |
+            const { data: pr } = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head: process.env.BRANCH,
+              base: 'develop',
+              title: `Release v${process.env.VERSION}`,
+              body: [
+                `## Linked issue`,
+                ``,
+                `Closes #${process.env.ISSUE_NUMBER}`,
+                ``,
+                `## What changed and why`,
+                ``,
+                `Version bump to \`${process.env.VERSION}\` and CHANGELOG updates.`,
+                `Fill in the changelog entries under \`## [${process.env.VERSION}]\` in each \`packages/*/CHANGELOG.md\` before merging.`,
+                ``,
+                `## Test coverage`,
+                ``,
+                `No code changes — version bump and changelog only.`,
+                ``,
+                `## Checklist`,
+                ``,
+                `- [x] I have read [CONTRIBUTING.md](../CONTRIBUTING.md)`,
+                `- [x] This PR references an issue with the appropriate approval label (\`release\`)`,
+                `- [x] Tests are included or existing tests cover this change`,
+                `- [ ] I used AI assistance to write some or all of this code`,
+                `- [x] I have read every line of this PR and can independently explain each architectural decision without AI assistance`,
+              ].join('\n'),
+            });
+            core.info(`Opened PR #${pr.number}: ${pr.html_url}`);
