@@ -1,0 +1,31 @@
+name: Release
+description: Trigger a version bump and open a release PR to develop.
+title: "Release: "
+labels:
+  - release
+body:
+  - type: dropdown
+    id: release-type
+    attributes:
+      label: Release type
+      description: |
+        - **alpha** — increment the prerelease number (`0.1.0-alpha.2` → `0.1.0-alpha.3`)
+        - **patch** — drop the prerelease suffix, or bump the patch segment if already stable (`0.1.0-alpha.2` → `0.1.0`)
+        - **minor** — bump the minor version (`0.1.0` → `0.2.0`)
+        - **major** — bump the major version (`1.2.3` → `2.0.0`)
+      options:
+        - alpha
+        - patch
+        - minor
+        - major
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Release notes (optional)
+      description: Any context for the maintainer — this is not the changelog. The release PR is where you hand-craft the changelog entries.
+      placeholder: Notable inclusions, timing notes, anything relevant.
+    validations:
+      required: false

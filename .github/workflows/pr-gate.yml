@@ -21,7 +21,7 @@ jobs:
             const owner = context.repo.owner;
             const repo = context.repo.repo;
 
-            const APPROVED_LABELS = ['feature: accepted', 'bug: confirmed'];
+            const APPROVED_LABELS = ['feature: accepted', 'bug: confirmed', 'release'];
 
             const close = async (message) => {
               await github.rest.issues.createComment({

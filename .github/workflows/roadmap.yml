@@ -52,6 +52,13 @@ jobs:
               return;
             }
 
+            // Release issues are operational, not roadmap items — skip them.
+            const issueLabels = context.payload.issue.labels.map((lbl) => lbl.name);
+            if (issueLabels.includes('release')) {
+              core.info('Release issue — skipping roadmap sync.');
+              return;
+            }
+
             // Goal = the release this version works toward: the next major boundary
             // at or above it, except everything up to and including 0.1.0 targets
             // the beta soft launch. Returns null for non-semver milestone titles.
