@@ -58,7 +58,9 @@ jobs:
         env:
           BODY: ${{ github.event.issue.body }}
         run: |
-          TYPE=$(echo "$BODY" | grep -A1 "^### Release type" | tail -1 | xargs)
+          # Issue forms render dropdowns as "### Release type" followed by a blank
+          # line and then the value — take the first non-empty line after the heading.
+          TYPE=$(echo "$BODY" | awk '/^### Release type/{found=1; next} found && NF {print; exit}' | tr -d '\r' | xargs)
           if [[ "$TYPE" != "alpha" && "$TYPE" != "patch" && "$TYPE" != "minor" && "$TYPE" != "major" ]]; then
             echo "Could not parse a valid release type from the issue body (got: '$TYPE'). Valid values: alpha, patch, minor, major."
             exit 1
