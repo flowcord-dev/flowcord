@@ -16,6 +16,7 @@ Each behavior field has a default value the framework falls back to when nothing
 | `messageCleanup` | `'edit' \| 'postAndStrip' \| 'postAndDelete' \| 'postAndReplace'` | `'edit'` | How the current message is handled on the next render cycle |
 | `ephemeralFallbackDisposal` | `'strip' \| 'replace'` | `'strip'` | Fallback when `messageCleanup` is `'postAndDelete'` but the message is ephemeral |
 | `closedMessage` | `string` | `'*Menu closed*'` | Content shown when `messageCleanup` is `'postAndReplace'` or when `ephemeralFallbackDisposal` is `'replace'` |
+| `timeoutMessage` | `string` | `'*This interaction has timed out.*'` | Content shown when the session ends due to inactivity (timeout) |
 | `deleteUserMessages` | `boolean` | `false` | Whether to delete the user's typed message after a message handler collects it |
 
 :::note
@@ -102,7 +103,7 @@ await flowcord.handleInteraction(interaction, 'admin-panel', {}, {
 
 ### Menu-level (one menu)
 
-Use `setEphemeral()` and `setMessageCleanup()` on the builder:
+Use `setEphemeral()`, `setMessageCleanup()`, and `setTimeoutMessage()` on the builder:
 
 ```ts
 new MenuBuilder(session, 'confirm-delete')
@@ -192,4 +193,4 @@ See [Examples — Behavior Subclass](/docs/examples/behavior-subclass) for a ful
 
 See [Behavior Types](/docs/api-reference/behavior-types) for the full type documentation.
 
-**Related MenuBuilder methods:** [`setEphemeral()`](/docs/api-reference/menu-builder#setephemeralephemeral), [`setMessageCleanup()`](/docs/api-reference/menu-builder#setmessagecleanupmode-options), [`_setDefaultBehavior()`](/docs/api-reference/menu-builder#_setdefaultbehaviorconfig), [`_setOverrideBehavior()`](/docs/api-reference/menu-builder#_setoverridebehaviorconfig)
+**Related MenuBuilder methods:** [`setEphemeral()`](/docs/api-reference/menu-builder#setephemeralephemeral), [`setMessageCleanup()`](/docs/api-reference/menu-builder#setmessagecleanupmode-options), [`setTimeoutMessage()`](/docs/api-reference/menu-builder#settimeoutmessagemessage), [`_setDefaultBehavior()`](/docs/api-reference/menu-builder#_setdefaultbehaviorconfig), [`_setOverrideBehavior()`](/docs/api-reference/menu-builder#_setoverridebehaviorconfig)

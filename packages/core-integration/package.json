@@ -1,6 +1,6 @@
 {
   "name": "@flowcord/core-integration",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.2",
   "private": true,
   "description": "Integration (behavior) tests for @flowcord/core — exercises core through @flowcord/testing's harness",
   "scripts": {
@@ -11,8 +11,8 @@
   "license": "Apache-2.0",
   "author": "Nicholas Bely",
   "devDependencies": {
-    "@flowcord/core": "0.1.0-alpha.1",
-    "@flowcord/testing": "0.1.0-alpha.1",
+    "@flowcord/core": "0.1.0-alpha.2",
+    "@flowcord/testing": "0.1.0-alpha.2",
     "@types/jest": "^29.5.14",
     "@types/node": "^20.0.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",

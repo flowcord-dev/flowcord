@@ -130,14 +130,40 @@ jobs:
           NPM_CONFIG_PROVENANCE: 'true' # publish with provenance via OIDC
 
       - name: Extract changelog notes
+        # Aggregates this version's section from every packages/*/CHANGELOG.md into
+        # the release body under a heading per package, skipping packages with no
+        # (or an empty) section so a core-only release has no hollow headings.
         id: changelog
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          NOTES=$(awk "/^## \[$VERSION\]/{found=1; next} /^## \[/{if(found) exit} found{print}" packages/core/CHANGELOG.md)
-          echo "notes<<EOF" >> $GITHUB_OUTPUT
-          echo "$NOTES" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          node -e "
+            const { readFileSync, writeFileSync, readdirSync, existsSync } = require('fs');
+            const version = process.env.VERSION;
+            const sections = [];
+            for (const dirName of readdirSync('packages')) {
+              const changelogPath = 'packages/' + dirName + '/CHANGELOG.md';
+              const manifestPath = 'packages/' + dirName + '/package.json';
+              if (!existsSync(changelogPath) || !existsSync(manifestPath)) continue;
+              const lines = readFileSync(changelogPath, 'utf8').split('\n');
+              const startIndex = lines.findIndex((line) => line.startsWith('## [' + version + ']'));
+              if (startIndex === -1) continue;
+              let endIndex = lines.length;
+              for (let index = startIndex + 1; index < lines.length; index += 1) {
+                if (lines[index].startsWith('## [')) { endIndex = index; break; }
+              }
+              const body = lines.slice(startIndex + 1, endIndex).join('\n').trim();
+              if (!body) continue;
+              const packageName = JSON.parse(readFileSync(manifestPath, 'utf8')).name;
+              sections.push('## ' + packageName + '\n\n' + body);
+            }
+            writeFileSync('release-notes.md', sections.join('\n\n') + '\n');
+          "
+          {
+            echo "notes<<NOTES_EOF"
+            cat release-notes.md
+            echo "NOTES_EOF"
+          } >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
