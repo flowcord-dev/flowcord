@@ -1,5 +1,5 @@
 name: Release
-description: Trigger a version bump and open a release PR to develop.
+description: "Maintainers only. Trigger a version bump and open a release PR to develop."
 title: "Release: "
 labels:
   - release
