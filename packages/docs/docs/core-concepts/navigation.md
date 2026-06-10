@@ -116,7 +116,7 @@ flowcord.registerMenu('confirm-delete', (session) =>
 For common navigation patterns, FlowCord exports action factory functions you can assign directly to a button's `action` field instead of writing an inline async callback:
 
 ```ts
-import { goTo, goBack, closeMenu, openModal } from '@flowcord/core';
+import { goTo, goBack, closeMenu } from '@flowcord/core';
 ```
 
 | Factory | Equivalent to | Usage |
@@ -124,7 +124,6 @@ import { goTo, goBack, closeMenu, openModal } from '@flowcord/core';
 | `goTo(menuId, options?)` | `async (ctx) => ctx.goTo(menuId, options)` | Navigate to another menu |
 | `goBack(result?)` | `async (ctx) => ctx.goBack(result)` | Return to previous menu |
 | `closeMenu()` | `async (ctx) => ctx.close()` | End the session |
-| `openModal(id?)` | Opens the modal with the given ID | Trigger a modal |
 
 ```ts
 .setButtons(() => [

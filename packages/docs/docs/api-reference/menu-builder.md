@@ -199,6 +199,20 @@ Controls how the current message is handled on the next render cycle.
 
 See [Behavior System — Message cleanup modes](/docs/core-concepts/behavior-system#message-cleanup-modes).
 
+### `.setTimeoutMessage(message)`
+
+```ts
+setTimeoutMessage(message: string): this
+```
+
+Sets the message shown when the session ends due to inactivity. Overrides the framework default (`'*This interaction has timed out.*'`) and any session or global default, but yields to session and global overrides — like all menu-explicit behavior declarations.
+
+```ts
+.setTimeoutMessage('*This menu expired — run /shop to start over.*')
+```
+
+On timeout, the menu's content, embeds, and components are replaced with this message.
+
 ---
 
 ## Subclass API (protected)
