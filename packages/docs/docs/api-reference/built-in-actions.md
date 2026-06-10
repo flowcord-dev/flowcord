@@ -7,7 +7,7 @@ sidebar_position: 3
 Action factories are functions that return an `Action` — they can be used directly as a button or select `action` value without writing an inline async callback.
 
 ```ts
-import { goTo, goBack, closeMenu, openModal, pipeline, guard } from '@flowcord/core';
+import { goTo, goBack, closeMenu, pipeline, guard } from '@flowcord/core';
 ```
 
 ---
@@ -64,21 +64,8 @@ action: closeMenu()
 
 ---
 
-### `openModal(modalId?)`
-
-```ts
-openModal(modalId?: string): Action
-```
-
-Triggers the modal defined via `.setModal()`. Pass a string ID for multi-modal menus; omit it for single-modal menus.
-
-```ts
-action: openModal()
-action: openModal('edit-details')
-```
-
 :::note
-Prefer using `opensModal` on the button config over the `openModal()` action. `opensModal` lets FlowCord call `showModal()` on the raw interaction before it is deferred, which is required by Discord. The `openModal()` action is provided for cases where the modal trigger is determined dynamically.
+There is no built-in action for opening modals. Set `opensModal` on the button config instead — FlowCord uses it to call `showModal()` on the raw interaction before it is deferred, which is required by Discord. (A legacy `openModal()` action existed prior to v0.1.0-alpha.2 but was removed as incompatible with automatic interaction deferral.)
 :::
 
 ---

@@ -111,9 +111,6 @@ Both render modes were called on the same builder. Pick one — they are mutuall
 **`Button "x" is configured as a modal trigger but no matching modal was found`**
 A button has `opensModal: 'some-id'` but `.setModal()` does not return a modal config with `id: 'some-id'`. Check that the IDs match exactly.
 
-**`Button "x" used openModal() action after the interaction was deferred`**
-The `openModal()` action was used in a button that was already deferred. Use `opensModal` on the button config instead — FlowCord uses it to call `showModal()` before the interaction is deferred.
-
 ---
 
 ## Session internals

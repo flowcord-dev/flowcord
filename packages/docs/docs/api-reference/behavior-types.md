@@ -28,6 +28,7 @@ interface BehaviorConfig {
   messageCleanup?: 'edit' | 'postAndDelete' | 'postAndStrip' | 'postAndReplace';
   ephemeralFallbackDisposal?: 'strip' | 'replace';
   closedMessage?: string;
+  timeoutMessage?: string;
   deleteUserMessages?: boolean;
 }
 ```
@@ -38,6 +39,7 @@ interface BehaviorConfig {
 | `messageCleanup` | `'edit' \| 'postAndDelete' \| 'postAndStrip' \| 'postAndReplace'` | `'edit'` | How the current message is handled on the next render cycle. See [Message cleanup modes](/docs/core-concepts/behavior-system#message-cleanup-modes) |
 | `ephemeralFallbackDisposal` | `'strip' \| 'replace'` | `'strip'` | Fallback strategy when `messageCleanup` is `'postAndDelete'` but the message is ephemeral (Discord does not allow bots to delete ephemeral messages). Has no effect when `messageCleanup` is not `'postAndDelete'` |
 | `closedMessage` | `string` | `'*Menu closed*'` | Content shown when `messageCleanup` is `'postAndReplace'`, or when `ephemeralFallbackDisposal` is `'replace'` |
+| `timeoutMessage` | `string` | `'*This interaction has timed out.*'` | Content shown when the session ends due to inactivity (timeout) |
 | `deleteUserMessages` | `boolean` | `false` | Whether to attempt deleting the user's typed message after `setMessageHandler` collects it. Best-effort — requires the bot to have the `Manage Messages` permission |
 
 ---
@@ -66,7 +68,7 @@ The internal shape of behavior stored on a `MenuBuilder`. Not typically used dir
 
 ```ts
 interface MenuBehavior {
-  explicit?: BehaviorConfig;    // set by setEphemeral(), setMessageCleanup()
+  explicit?: BehaviorConfig;    // set by setEphemeral(), setMessageCleanup(), setTimeoutMessage()
   classDefault?: BehaviorConfig; // set by _setDefaultBehavior()
   classOverride?: BehaviorConfig; // set by _setOverrideBehavior()
 }
@@ -96,6 +98,7 @@ interface ResolvedBehavior {
   messageCleanup: 'edit' | 'postAndDelete' | 'postAndStrip' | 'postAndReplace';
   ephemeralFallbackDisposal: 'strip' | 'replace';
   closedMessage: string;
+  timeoutMessage: string;
   deleteUserMessages: boolean;
 }
 ```
