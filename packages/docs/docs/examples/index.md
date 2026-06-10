@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # Examples
 
-Each example corresponds to a runnable bot in the `flowcord-core/examples/` directory. The snippets on these pages highlight the key FlowCord patterns and may omit boilerplate for brevity — refer to the source files for complete, runnable code.
+Each example corresponds to a runnable bot in the `packages/core/examples/` directory. The snippets on these pages highlight the key FlowCord patterns and may omit boilerplate for brevity — refer to the source files for complete, runnable code.
 
 Examples are grouped by topic. Later examples assume familiarity with earlier ones within each group, but you can jump directly to the topic that interests you.
 
@@ -64,4 +64,4 @@ Controlling ephemeral state, message cleanup, and per-interaction overrides.
 - **Message cleanup behavior** → [Behavior Policy](./behavior-policy)
 - **Reusable builder subclasses** → [Behavior Subclass](./behavior-subclass)
 
-All source files live in [`flowcord-core/examples/`](https://github.com/flowcord-dev/flowcord-core/tree/main/examples).
+All source files live in [`packages/core/examples/`](https://github.com/flowcord-dev/flowcord/tree/main/packages/core/examples).

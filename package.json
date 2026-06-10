@@ -7,7 +7,7 @@
   "author": "Nicholas Bely",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/flowcord-dev/flowcord-core.git"
+    "url": "git+https://github.com/flowcord-dev/flowcord.git"
   },
   "workspaces": [
     "packages/*"

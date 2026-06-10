@@ -1,6 +1,6 @@
 # @flowcord/testing
 
-Testing utilities for [FlowCord](https://github.com/flowcord-dev/flowcord-core). Drive
+Testing utilities for [FlowCord](https://github.com/flowcord-dev/flowcord). Drive
 menu sessions to completion in-process — no Discord gateway connection, no real
 interactions, fully deterministic.
 

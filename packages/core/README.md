@@ -875,8 +875,8 @@ The examples share a single bot entry point ([`examples/bot.ts`](./examples/bot.
 **1. Clone the repo and install dependencies**
 
 ```bash
-git clone https://github.com/flowcord-dev/flowcord-core.git
-cd flowcord-core
+git clone https://github.com/flowcord-dev/flowcord.git
+cd flowcord
 npm install
 ```
 

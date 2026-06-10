@@ -28,13 +28,13 @@ The process below exists to catch those situations *before* code gets written, n
 
 ### For bug fixes
 
-1. Open a [Bug Report](https://github.com/flowcord-dev/flowcord-core/issues/new?template=bug_report.yml)
+1. Open a [Bug Report](https://github.com/flowcord-dev/flowcord/issues/new?template=bug_report.yml)
 2. A maintainer will reproduce it and apply `bug: confirmed`
 3. Once confirmed, open a PR with `Closes #N` in the description
 
 ### For new features
 
-1. Open a [Feature Request](https://github.com/flowcord-dev/flowcord-core/issues/new?template=feature_request.yml)
+1. Open a [Feature Request](https://github.com/flowcord-dev/flowcord/issues/new?template=feature_request.yml)
 2. Describe the problem, your proposed solution, and any alternatives you considered
 3. Discussion — including architecture — happens in the issue. If the approach needs adjusting to fit the existing design, that's the right place to work it out, before any code gets written
 4. A maintainer applies `feature: accepted` and may sketch out the expected approach

@@ -34,11 +34,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/flowcord-dev/flowcord-core.git"
+    "url": "git+https://github.com/flowcord-dev/flowcord.git"
   },
-  "homepage": "https://github.com/flowcord-dev/flowcord-core#readme",
+  "homepage": "https://github.com/flowcord-dev/flowcord#readme",
   "bugs": {
-    "url": "https://github.com/flowcord-dev/flowcord-core/issues"
+    "url": "https://github.com/flowcord-dev/flowcord/issues"
   },
   "author": "Nicholas Bely",
   "keywords": [

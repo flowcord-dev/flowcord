@@ -174,7 +174,7 @@ flowcord.registerMenu('event-details', (session) =>
     // Two modals — each with a unique id matched by opensModal on the buttons below
     // ModalBuilder.addComponents() setup is omitted below for brevity.
     // See discord.js docs for TextInputBuilder configuration and the full
-    // source in flowcord-core/examples/ for a complete runnable version.
+    // source in packages/core/examples/ for a complete runnable version.
     .setModal((ctx) => [
       {
         id: 'create-event',
@@ -270,4 +270,4 @@ client.login(process.env.DISCORD_BOT_TOKEN);
 - **Session state carries the theme forward.** The select menu stores the selection in `ctx.sessionState`. When the user navigates to `event-details`, `setup()` reads it from `ctx.sessionState` into local state, so the embed can display it.
 - **Two modals share one `.setModal()` call.** Returning an array with distinct `id` values lets the buttons choose which modal to open via `opensModal: 'create-event'` or `opensModal: 'edit-event'`.
 - **Buttons change based on state.** Before the form is filled, only the "Fill Details" button is shown. After, the "Edit Details" and "Confirm" buttons replace it. `setButtons` re-runs on every render cycle, so this conditional logic works naturally.
-- **`ModalBuilder` configuration is condensed here** — refer to the [discord.js docs](https://discord.js.org/docs/packages/discord.js/main/ModalBuilder:Class) and the full source in [`examples/05-selects-and-modals.ts`](https://github.com/flowcord-dev/flowcord-core/blob/main/examples/05-selects-and-modals.ts) for the complete input rows.
+- **`ModalBuilder` configuration is condensed here** — refer to the [discord.js docs](https://discord.js.org/docs/packages/discord.js/main/ModalBuilder:Class) and the full source in [`examples/05-selects-and-modals.ts`](https://github.com/flowcord-dev/flowcord/blob/main/packages/core/examples/05-selects-and-modals.ts) for the complete input rows.
