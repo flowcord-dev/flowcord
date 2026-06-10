@@ -3,7 +3,7 @@ name: Open Release PR
 # Triggered when a release issue is opened (via the release issue template, which
 # auto-applies the `release` label). Calculates the next version, bumps every
 # workspace package.json (plus internal dependency pins and the lockfile),
-# converts ## [Unreleased] in the core CHANGELOG to the new version section,
+# converts ## [Unreleased] in every package CHANGELOG to the new version section,
 # pushes a release/* branch, updates the issue title, and opens a PR to develop
 # for the maintainer to fill in and merge.
 
@@ -141,26 +141,34 @@ jobs:
         # so regenerate it for the bumped versions and pins.
         run: npm install --package-lock-only --ignore-scripts
 
-      - name: Update CHANGELOG
+      - name: Update CHANGELOGs
         env:
           VERSION: ${{ steps.next_version.outputs.version }}
         run: |
           TODAY=$(date -u +%Y-%m-%d)
           node -e "
-            const { readFileSync, writeFileSync } = require('fs');
-            const path = 'packages/core/CHANGELOG.md';
-            const content = readFileSync(path, 'utf8');
-            if (!content.includes('## [Unreleased]')) {
-              console.error('No ## [Unreleased] section found in CHANGELOG.md — add one and re-trigger.');
+            const { readFileSync, writeFileSync, readdirSync, existsSync } = require('fs');
+            const changelogs = readdirSync('packages')
+              .map((dirName) => 'packages/' + dirName + '/CHANGELOG.md')
+              .filter((path) => existsSync(path));
+            if (changelogs.length === 0) {
+              console.error('No packages/*/CHANGELOG.md files found.');
               process.exit(1);
             }
-            // Insert the new versioned header immediately after ## [Unreleased]
-            // so that any content already under [Unreleased] moves under the new version.
-            const updated = content.replace(
-              '## [Unreleased]',
-              '## [Unreleased]\n\n## [$VERSION] - $TODAY'
-            );
-            writeFileSync(path, updated);
+            for (const path of changelogs) {
+              const content = readFileSync(path, 'utf8');
+              if (!content.includes('## [Unreleased]')) {
+                console.error('No ## [Unreleased] section found in ' + path + ' — add one and re-trigger.');
+                process.exit(1);
+              }
+              // Insert the new versioned header immediately after ## [Unreleased]
+              // so that any content already under [Unreleased] moves under the new version.
+              const updated = content.replace(
+                '## [Unreleased]',
+                '## [Unreleased]\n\n## [$VERSION] - $TODAY'
+              );
+              writeFileSync(path, updated);
+            }
           "
 
       - name: Commit and push release branch
@@ -171,7 +179,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
-          git add package.json package-lock.json packages/*/package.json packages/core/CHANGELOG.md
+          git add package.json package-lock.json packages/*/package.json packages/*/CHANGELOG.md
           git commit -m "chore(release): bump to v$VERSION"
           git push origin "$BRANCH"
 
@@ -209,8 +217,8 @@ jobs:
                 ``,
                 `## What changed and why`,
                 ``,
-                `Version bump to \`${process.env.VERSION}\` and CHANGELOG update.`,
-                `Fill in the changelog entries under \`## [${process.env.VERSION}]\` in \`packages/core/CHANGELOG.md\` before merging.`,
+                `Version bump to \`${process.env.VERSION}\` and CHANGELOG updates.`,
+                `Fill in the changelog entries under \`## [${process.env.VERSION}]\` in each \`packages/*/CHANGELOG.md\` before merging.`,
                 ``,
                 `## Test coverage`,
                 ``,

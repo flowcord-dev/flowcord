@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-alpha.2] - 2026-06-10
+
 ### Added
 
 - Initial extraction of the FlowCord test harness into its own published package, `@flowcord/testing`. Previously bundled inside `@flowcord/core` under `src/testing`; now consumable standalone and version-locked (lockstep) with `@flowcord/core`.
