@@ -44,7 +44,7 @@ The process below exists to catch those situations *before* code gets written, n
 
 ## Architecture
 
-Before proposing or implementing anything non-trivial, it's worth reading [ARCHITECTURE.md](./ARCHITECTURE.md). It covers the session lifecycle, rendering pipeline, navigation system, and state architecture — the stuff that new features need to play nicely with.
+Before proposing or implementing anything non-trivial, it's worth reading [ARCHITECTURE.md](./packages/core/ARCHITECTURE.md). It covers the session lifecycle, rendering pipeline, navigation system, and state architecture — the stuff that new features need to play nicely with.
 
 If your idea would touch core architecture, mention it explicitly in the issue. That conversation is part of the approval, not a surprise to save for the PR.
 
