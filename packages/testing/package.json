@@ -56,11 +56,11 @@
   },
   "sideEffects": false,
   "peerDependencies": {
-    "@flowcord/core": "0.1.0-alpha.1",
+    "@flowcord/core": "0.1.0-alpha.2",
     "discord.js": "^14.0.0"
   },
   "devDependencies": {
-    "@flowcord/core": "0.1.0-alpha.1",
+    "@flowcord/core": "0.1.0-alpha.2",
     "@types/jest": "^29.5.14",
     "@types/node": "^20.0.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
