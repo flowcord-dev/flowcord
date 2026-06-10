@@ -34,20 +34,38 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Releasing v$VERSION"
 
-      - name: Verify version is unpublished and untagged
+      - name: Check publish and tag state
+        id: guards
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          for PACKAGE in @flowcord/core @flowcord/testing; do
-            if npm view "$PACKAGE@$VERSION" version > /dev/null 2>&1; then
-              echo "$PACKAGE@$VERSION is already published to npm. Merge a release PR with a new version first."
-              exit 1
-            fi
-          done
-          if git ls-remote --exit-code origin "refs/tags/v$VERSION" > /dev/null 2>&1; then
-            echo "Tag v$VERSION already exists. Merge a release PR with a new version first."
+          CORE_PUBLISHED=false
+          TESTING_PUBLISHED=false
+          if npm view "@flowcord/core@$VERSION" version > /dev/null 2>&1; then CORE_PUBLISHED=true; fi
+          if npm view "@flowcord/testing@$VERSION" version > /dev/null 2>&1; then TESTING_PUBLISHED=true; fi
+
+          # Partial publish (one package but not the other) means something went badly wrong.
+          if [[ "$CORE_PUBLISHED" != "$TESTING_PUBLISHED" ]]; then
+            echo "Partial publish detected: @flowcord/core published=$CORE_PUBLISHED, @flowcord/testing published=$TESTING_PUBLISHED. Manual intervention required."
             exit 1
           fi
+
+          # Both published — this is a retry after a post-publish failure (tag or release).
+          # Skip republishing but still ensure the tag and GitHub Release are created.
+          if $CORE_PUBLISHED; then
+            echo "Both packages already on npm — skipping publish (retry mode)."
+          fi
+          echo "all_published=$CORE_PUBLISHED" >> $GITHUB_OUTPUT
+
+          TAG_EXISTS=false
+          if git ls-remote --exit-code origin "refs/tags/v$VERSION" > /dev/null 2>&1; then TAG_EXISTS=true; fi
+          if $TAG_EXISTS; then
+            echo "Tag v$VERSION already exists — skipping tag creation."
+          fi
+          echo "tag_exists=$TAG_EXISTS" >> $GITHUB_OUTPUT
+
+          # Fresh run with no version bump: both unpublished and no tag is the expected state.
+          # If somehow a different version's tag was pushed without a release, that's caught above.
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -96,6 +114,7 @@ jobs:
           fi
 
       - name: Create and push release tag
+        if: steps.guards.outputs.tag_exists != 'true'
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
@@ -105,6 +124,7 @@ jobs:
           git push origin "v$VERSION"
 
       - name: Publish to npm
+        if: steps.guards.outputs.all_published != 'true'
         run: npm run release:publish -- --tag ${{ steps.dist_tag.outputs.tag }}
         env:
           NPM_CONFIG_PROVENANCE: 'true' # publish with provenance via OIDC

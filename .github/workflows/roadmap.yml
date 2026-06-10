@@ -107,14 +107,38 @@ jobs:
                 return;
               }
 
-              const addResult = await github.graphql(`
-                mutation($projectId: ID!, $contentId: ID!) {
-                  addProjectV2ItemById(input: { projectId: $projectId, contentId: $contentId }) {
-                    item { id }
+              // addProjectV2ItemById fails if the item is already on the project (e.g. the
+              // project's built-in auto-add ran first, or this workflow re-triggered on
+              // milestoned/demilestoned). On failure, fall back to fetching the existing item.
+              let itemId;
+              try {
+                const addResult = await github.graphql(`
+                  mutation($projectId: ID!, $contentId: ID!) {
+                    addProjectV2ItemById(input: { projectId: $projectId, contentId: $contentId }) {
+                      item { id }
+                    }
                   }
-                }
-              `, { projectId: project.id, contentId: issue.node_id });
-              const itemId = addResult.addProjectV2ItemById.item.id;
+                `, { projectId: project.id, contentId: issue.node_id });
+                itemId = addResult.addProjectV2ItemById.item.id;
+              } catch (addErr) {
+                const addMsg = addErr instanceof Error ? addErr.message : String(addErr);
+                if (!/already/i.test(addMsg)) throw addErr;
+                // Item already on the project — look up its ID via the issue's project items.
+                const existing = await github.graphql(`
+                  query($nodeId: ID!) {
+                    node(id: $nodeId) {
+                      ... on Issue {
+                        projectItems(first: 20) {
+                          nodes { id project { id } }
+                        }
+                      }
+                    }
+                  }
+                `, { nodeId: issue.node_id });
+                const match = existing.node.projectItems.nodes.find((node) => node.project.id === project.id);
+                if (!match) throw addErr;
+                itemId = match.id;
+              }
               core.info(`Issue #${issue.number} is on project #${projectNumber} (item ${itemId}).`);
 
               if (!goalName) return;
@@ -126,9 +150,7 @@ jobs:
               }
 
               const wanted = goalName.toLowerCase();
-              const option =
-                goalField.options.find((candidate) => candidate.name.toLowerCase() === wanted) ||
-                goalField.options.find((candidate) => candidate.name.toLowerCase().includes(wanted));
+              const option = goalField.options.find((candidate) => candidate.name.toLowerCase() === wanted);
               if (!option) {
                 core.warning(`No "${goalName}" option on the Goal field — add it in the project settings, then re-trigger by re-assigning the milestone.`);
                 return;
