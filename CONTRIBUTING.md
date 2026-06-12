@@ -74,6 +74,12 @@ The PR template has two AI-related checkboxes: one for disclosing that you used 
 
 ---
 
+## AI context files
+
+The repo ships context for coding agents: a root [`AGENTS.md`](./AGENTS.md) (with a `CLAUDE.md` shim), an `AGENTS.md` in each package, and skills under `.claude/skills/`. They describe the conventions in this document plus repo structure and commands — if your PR changes a command, convention, or structure they mention, update the relevant file in the same PR.
+
+---
+
 ## What gets auto-closed
 
 - PRs with no linked issue
