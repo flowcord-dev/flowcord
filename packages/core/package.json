@@ -2,17 +2,31 @@
   "name": "@flowcord/core",
   "version": "0.1.0-alpha.2",
   "description": "Lifecycle-driven interactive menu framework for Discord.js",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/cjs/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "require": "./dist/index.js"
+      "import": {
+        "types": "./dist/esm/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      }
     },
     "./mocks": {
-      "types": "./dist/mocks/index.d.ts",
-      "require": "./dist/mocks/index.js"
-    }
+      "import": {
+        "types": "./dist/esm/mocks/index.d.ts",
+        "default": "./dist/esm/mocks/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/mocks/index.d.ts",
+        "default": "./dist/cjs/mocks/index.js"
+      }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist",

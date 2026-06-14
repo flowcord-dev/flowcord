@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist/esm",
+    "rootDir": "./src",
+    "types": ["node"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "composite": false,
+    "declarationMap": false,
+    "paths": {
+      "@flowcord/core": ["../core/dist/esm/index.d.ts"],
+      "@flowcord/core/mocks": ["../core/dist/esm/mocks/index.d.ts"]
+    }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/**/__tests__/**"
+  ]
+}

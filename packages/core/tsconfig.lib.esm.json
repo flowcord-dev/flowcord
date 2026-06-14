@@ -1,15 +1,18 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "./dist/cjs",
+    "outDir": "./dist/esm",
     "rootDir": "./src",
     "types": ["node"],
-    "tsBuildInfoFile": "tsconfig.lib.tsbuildinfo"
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "composite": false,
+    "declarationMap": false
   },
   "include": ["src/**/*.ts"],
   "exclude": [
     "src/**/*.test.ts",
-    "src/**/__tests__/**"
-  ],
-  "references": [{ "path": "../core/tsconfig.lib.json" }]
+    "src/**/__tests__/**",
+    "examples"
+  ]
 }
