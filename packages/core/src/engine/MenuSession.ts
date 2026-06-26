@@ -234,7 +234,10 @@ export class MenuSession implements MenuSessionLike {
       this._currentOptions = options;
       const instance = new MenuInstance(definition, this.id);
       this._currentMenu = instance;
-      await this._runSetup(instance);
+      if (definition.setup) {
+        const ctx = this.buildContext(instance);
+        await definition.setup(ctx);
+      }
       const ctx = this.buildContext(instance);
       await this._emitHook('onEnter', ctx, definition.hooks);
       this._didNavigate = true;
@@ -297,7 +300,6 @@ export class MenuSession implements MenuSessionLike {
         sessionId: this.id,
         userId: this._commandInteraction.user.id,
         timestamp: Date.now(),
-        direction: 'forward',
       });
     }
 
@@ -308,7 +310,10 @@ export class MenuSession implements MenuSessionLike {
     this._currentMenu = instance;
 
     // Run setup if defined
-    await this._runSetup(instance);
+    if (definition.setup) {
+      const ctx = this.buildContext(instance);
+      await definition.setup(ctx);
+    }
 
     // Fire onEnter
     const ctx = this.buildContext(instance);
@@ -367,18 +372,6 @@ export class MenuSession implements MenuSessionLike {
       );
     }
 
-    // Trace back navigation
-    if (this._engine.tracer && this._currentMenu) {
-      this._engine.tracer.record({
-        from: this._currentMenu.name,
-        to: entry.menuId,
-        sessionId: this.id,
-        userId: this._commandInteraction.user.id,
-        timestamp: Date.now(),
-        direction: 'back',
-      });
-    }
-
     this._currentOptions = entry.options;
     const definition = await factory(this, entry.options);
     const instance = new MenuInstance(definition, this.id);
@@ -391,8 +384,9 @@ export class MenuSession implements MenuSessionLike {
         instance.paginationState = { ...entry.paginationSnapshot };
       }
       // Skip setup — state is already initialized from snapshot
-    } else {
-      await this._runSetup(instance);
+    } else if (definition.setup) {
+      const ctx = this.buildContext(instance);
+      await definition.setup(ctx);
     }
 
     // Fire onEnter
@@ -441,24 +435,15 @@ export class MenuSession implements MenuSessionLike {
       );
     }
 
-    // Trace fallback back navigation
-    if (this._engine.tracer && this._currentMenu) {
-      this._engine.tracer.record({
-        from: this._currentMenu.name,
-        to: fallbackMenu,
-        sessionId: this.id,
-        userId: this._commandInteraction.user.id,
-        timestamp: Date.now(),
-        direction: 'back',
-      });
-    }
-
     this._currentOptions = fallbackMenuOptions;
     const definition = await factory(this, fallbackMenuOptions);
     const instance = new MenuInstance(definition, this.id);
     this._currentMenu = instance;
 
-    await this._runSetup(instance);
+    if (definition.setup) {
+      const ctx = this.buildContext(instance);
+      await definition.setup(ctx);
+    }
 
     const ctx = this.buildContext(instance);
     await this._emitHook('onEnter', ctx, definition.hooks);
@@ -542,6 +527,48 @@ export class MenuSession implements MenuSessionLike {
   }
 
   /**
+   * Update the current menu options without pushing history.
+   */
+  async updateOptions(
+    options?: Record<string, unknown>,
+    config?: { preserveState?: boolean },
+  ): Promise<void> {
+    if (!this._currentMenu) return;
+
+    const preserveState = config?.preserveState === true;
+    const nextOptions = options ?? this._currentOptions ?? {};
+
+    const factory = this._engine.menuRegistry.getFactory(
+      this._currentMenu.name,
+    );
+    if (!factory) {
+      throw new Error(
+        `Menu "${this._currentMenu.name}" is not registered (cannot update options).`,
+      );
+    }
+
+    const definition = await factory(this, nextOptions);
+    const newState = preserveState
+      ? this._currentMenu.stateAccessor.current
+      : undefined;
+    const instance = new MenuInstance(definition, this.id, newState);
+    this._currentMenu = instance;
+    this._currentOptions = nextOptions;
+
+    const ctx = this.buildContext(this._currentMenu);
+
+    if (!preserveState && definition.setup) {
+      await definition.setup(ctx);
+    }
+
+    await this._emitHook(
+      'onUpdateOptions',
+      ctx,
+      this._currentMenu.definition.hooks,
+    );
+  }
+
+  /**
    * Hard refresh — re-run the menu factory from scratch.
    */
   async hardRefresh(): Promise<void> {
@@ -555,7 +582,10 @@ export class MenuSession implements MenuSessionLike {
     this._currentMenu = instance;
 
     // Run setup
-    await this._runSetup(instance);
+    if (definition.setup) {
+      const ctx = this.buildContext(instance);
+      await definition.setup(ctx);
+    }
 
     this._didHardRefresh = true;
   }
@@ -633,25 +663,6 @@ export class MenuSession implements MenuSessionLike {
     });
   }
 
-  /**
-   * Run a menu's setup function (if defined) and emit the corresponding
-   * hook event. Centralised here so every entry path — initialize,
-   * navigateTo, _goBack, _activateFallbackMenu, hardRefresh — records
-   * the event consistently and hookHistory is never missing setup calls.
-   */
-  private async _runSetup(instance: MenuInstance): Promise<void> {
-    const { setup } = instance.definition;
-    if (!setup) return;
-    const ctx = this.buildContext(instance);
-    await setup(ctx);
-    this._emitEvent({
-      kind: 'hook',
-      menuId: ctx.menu.name,
-      hookName: 'setup',
-      timestamp: Date.now(),
-    });
-  }
-
   private async _timeout(): Promise<void> {
     const timeoutBehavior = resolveBehavior(
       this._currentMenu?.definition.behavior,
@@ -701,7 +712,7 @@ export class MenuSession implements MenuSessionLike {
       this._didNavigate = false;
       this._didHardRefresh = false;
 
-      // --- Pending modal (opensModal button showed modal in previous iteration) ---
+      // --- Pending modal (action triggered openModal in previous iteration) ---
       const modalDirective = await this._handlePendingModal(timeout);
       if (modalDirective === 'break') break;
       if (modalDirective === 'continue') continue;
@@ -769,10 +780,7 @@ export class MenuSession implements MenuSessionLike {
       this._renderer.clearDisplayBehaviors();
       return 'continue';
     }
-    if (outcome === 'timeout') {
-      await this._timeout();
-      return 'break';
-    }
+    if (outcome === 'timeout') return 'break';
     return 'continue'; // Re-render after modal outcome
   }
 
@@ -974,9 +982,7 @@ export class MenuSession implements MenuSessionLike {
     const userId = this._commandInteraction.user.id;
     const responseType = this._currentMenu.getResponseType();
 
-    // Build the race contestants. Modal is always the primary racer.
-    // Component and message racers are included so that if the user
-    // dismisses the modal, underlying buttons/messages remain responsive.
+    // Build the race contestants. Modal is always included.
     const racers: Promise<{
       type: 'modal' | 'component' | 'message';
       raw?: ModalSubmitInteraction;
@@ -1164,6 +1170,7 @@ export class MenuSession implements MenuSessionLike {
     }
 
     await this.executeAction(action, ctx);
+    await this._showLegacyModal(interaction, componentId);
   }
 
   /**
@@ -1284,6 +1291,53 @@ export class MenuSession implements MenuSessionLike {
           modalId ?? 'unknown'
         }"). Ensure setModal() registers a modal with the correct ID.`,
     );
+  }
+
+  /**
+   * Legacy openModal() action support: if an action called openModal() and
+   * set isModalActive, show the modal on the raw interaction.
+   * Throws when the interaction was already deferred (developer error — they
+   * should use opensModal on the button config instead).
+   */
+  private async _showLegacyModal(
+    interaction: MessageComponentInteraction,
+    componentId: string,
+  ): Promise<void> {
+    if (
+      !this._currentMenu?.isModalActive ||
+      !this._currentMenu.activeModal
+    ) {
+      return;
+    }
+
+    if (!interaction.deferred && !interaction.replied) {
+      const normalizedTrigger: NormalizedComponentInteraction = {
+        customId: interaction.customId,
+        type: 'button',
+        userId: interaction.user.id,
+        deferUpdate: async () => {
+          if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferUpdate();
+          }
+        },
+        raw: interaction,
+      };
+      await this._adapter.showModal(
+        this._currentMenu.activeModal.builder.toJSON(),
+        normalizedTrigger,
+      );
+      this._emitEvent({
+        kind: 'modal:shown',
+        menuId: this._currentMenu.name,
+        timestamp: Date.now(),
+      });
+    } else {
+      this._currentMenu.isModalActive = false;
+      throw new Error(
+        `[FlowCord] Button "${componentId}" used openModal() action after the interaction was deferred. ` +
+          `Use opensModal on the button configuration so the framework can call showModal() on a raw interaction.`,
+      );
+    }
   }
 
   /**
@@ -1451,6 +1505,12 @@ export class MenuSession implements MenuSessionLike {
       },
       close: async () => {
         await this.close();
+      },
+      updateOptions: async (
+        options?: Record<string, unknown>,
+        config?: { preserveState?: boolean },
+      ) => {
+        await this.updateOptions(options, config);
       },
       hardRefresh: async () => {
         await this.hardRefresh();

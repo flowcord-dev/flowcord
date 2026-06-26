@@ -41,3 +41,36 @@ export function closeMenu(): Action {
     await ctx.close();
   };
 }
+
+/**
+ * Update the current menu options without pushing history.
+ * @example action: updateOptions({ categoryId: '4' })
+ * @example action: updateOptions({ filter: 'legendary' }, { preserveState: true })
+ */
+export function updateOptions(
+  options: Record<string, unknown>,
+  config?: { preserveState?: boolean },
+): Action {
+  return async (ctx: MenuContextLike) => {
+    await ctx.updateOptions(options, config);
+  };
+}
+
+/**
+ * Open a modal dialog. The modal is defined on the menu via .setModal().
+ * This action triggers the modal display.
+ * @example action: openModal()
+ * @example action: openModal('create-location')
+ */
+export function openModal(modalId?: string): Action {
+  return async (ctx: MenuContextLike) => {
+    // The engine handles modal display via the menu instance
+    // This is a signal to the session's action handler
+    const menu = ctx.menu as {
+      openModal?: (id?: string) => Promise<void>;
+    };
+    if (menu.openModal) {
+      await menu.openModal(modalId);
+    }
+  };
+}
