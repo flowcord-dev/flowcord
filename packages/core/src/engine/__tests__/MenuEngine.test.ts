@@ -4,6 +4,8 @@ import {
   mockComponentInteraction,
 } from '@flowcord/core/mocks';
 import { MenuEngine } from '../MenuEngine';
+import { MenuSession } from '../MenuSession';
+import { MenuInstance } from '../../menu/MenuInstance';
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -183,5 +185,48 @@ describe('handleInteraction — error path', () => {
 
     expect(engine.activeSessionCount).toBe(0);
     consoleError.mockRestore();
+  });
+});
+
+describe('updateOptions', () => {
+  it('keeps the current MenuInstance when preserveInstance is true', async () => {
+    const client = mockClient();
+    const interaction = mockCommandInteraction({ client });
+    const engine = new MenuEngine({ client });
+    const session = new MenuSession(engine as never, interaction as never);
+
+    const initialDefinition = {
+      name: 'test-menu',
+      mode: 'embeds' as const,
+      hooks: {},
+      isTrackedInHistory: false,
+      isCancellable: false,
+      isReturnable: false,
+      behavior: {},
+      preserveStateOnReturn: false,
+      contextExtensions: [],
+    };
+    const initialInstance = new MenuInstance(
+      initialDefinition as never,
+      session.id,
+    );
+
+    (session as never as { _currentMenu: MenuInstance })._currentMenu =
+      initialInstance;
+    (session as never as { _currentOptions?: Record<string, unknown> })._currentOptions = {
+      categoryId: '1',
+    };
+
+    engine.registerMenu('test-menu', async () => ({
+      ...initialDefinition,
+      hooks: {},
+    }));
+
+    await session.updateOptions(
+      { categoryId: '2' },
+      { preserveInstance: true },
+    );
+
+    expect(session.currentMenu).toBe(initialInstance);
   });
 });

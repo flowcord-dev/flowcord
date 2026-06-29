@@ -72,7 +72,7 @@ export interface MenuContext<
    */
   updateOptions(
     options: Record<string, unknown>,
-    config?: { preserveState?: boolean },
+    config?: { preserveState?: boolean; preserveInstance?: boolean },
   ): Promise<void>;
 
   /**

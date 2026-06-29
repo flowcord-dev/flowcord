@@ -49,7 +49,7 @@ export function closeMenu(): Action {
  */
 export function updateOptions(
   options: Record<string, unknown>,
-  config?: { preserveState?: boolean },
+  config?: { preserveState?: boolean; preserveInstance?: boolean },
 ): Action {
   return async (ctx: MenuContextLike) => {
     await ctx.updateOptions(options, config);

@@ -83,6 +83,7 @@ export function mockMenuContext<
     goTo: overrides.goTo ?? (async () => {}),
     goBack: overrides.goBack ?? (async () => {}),
     close: overrides.close ?? (async () => {}),
+    updateOptions: overrides.updateOptions ?? (async () => {}),
     hardRefresh: overrides.hardRefresh ?? (async () => {}),
     openSubMenu: overrides.openSubMenu ?? (async () => {}),
     complete: overrides.complete ?? (async () => {}),
