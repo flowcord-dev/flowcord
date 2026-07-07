@@ -14,6 +14,7 @@
  *   - beforeRender for fetching fresh data before each render
  *   - afterRender for side effects after display
  *   - onAction hook for tracking user interactions
+ *   - onUpdateOptions for reacting to ctx.updateOptions() calls
  */
 
 import {
@@ -30,9 +31,11 @@ import {
 // } from '../src/index.ts';
 import {
   type FlowCord,
+  type MenuContext,
   MenuBuilder,
   goTo,
   closeMenu,
+  updateOptions,
 } from '@flowcord/core';
 
 // --- Slash command definitions ---
@@ -59,13 +62,15 @@ type ExerciseMenuState = {
   selectedExercise: string | null;
 };
 
+type MuscleGroup = 'all' | 'upper' | 'lower';
+
 // --- Fake "database" ---
 const exerciseLibrary = [
-  { name: '🏋️ Squats', reps: 15 },
-  { name: '🤸 Push-ups', reps: 20 },
-  { name: '🏃 Lunges', reps: 12 },
-  { name: '💪 Bicep Curls', reps: 10 },
-  { name: '🧘 Planks', reps: 3 },
+  { name: '🏋️ Squats', reps: 15, group: 'lower' as MuscleGroup },
+  { name: '🤸 Push-ups', reps: 20, group: 'upper' as MuscleGroup },
+  { name: '🏃 Lunges', reps: 12, group: 'lower' as MuscleGroup },
+  { name: '💪 Bicep Curls', reps: 10, group: 'upper' as MuscleGroup },
+  { name: '🧘 Planks', reps: 3, group: 'upper' as MuscleGroup },
 ];
 
 // --- Menu registration ---
@@ -187,8 +192,14 @@ export function register(flowcord: FlowCord): void {
   // ---------------------------------------------------------------------------
   // Menu 2: Exercise Picker
   // ---------------------------------------------------------------------------
-  flowcord.registerMenu('exercise-picker', (session) =>
-    new MenuBuilder<ExerciseMenuState>(session, 'exercise-picker')
+  flowcord.registerMenu('exercise-picker', (session, options) => {
+    const group = (options?.group as MuscleGroup) ?? 'all';
+    const filtered =
+      group === 'all'
+        ? exerciseLibrary
+        : exerciseLibrary.filter((ex) => ex.group === group);
+
+    return new MenuBuilder<ExerciseMenuState>(session, 'exercise-picker')
       .setup((ctx) => {
         ctx.state.set('selectedExercise', null);
       })
@@ -197,11 +208,20 @@ export function register(flowcord: FlowCord): void {
         console.log(`[onEnter] Exercise picker opened`);
       })
 
+      // onUpdateOptions fires after ctx.updateOptions() re-runs the menu
+      // factory with new options (here: switching the muscle-group filter),
+      // without pushing a new entry onto the navigation history.
+      .onUpdateOptions((ctx) => {
+        console.log(
+          `[onUpdateOptions] Exercise picker filter changed to "${group}"`,
+        );
+      })
+
       .setEmbeds(() => [
         new EmbedBuilder()
-          .setTitle('🏋️ Choose an Exercise')
+          .setTitle(`🏋️ Choose an Exercise — ${group}`)
           .setDescription(
-            exerciseLibrary
+            filtered
               .map(
                 (ex, i) =>
                   `**${i + 1}.** ${ex.name} (${ex.reps} reps)`,
@@ -211,11 +231,11 @@ export function register(flowcord: FlowCord): void {
           .setColor(0x3498db),
       ])
 
-      .setButtons(() =>
-        exerciseLibrary.map((exercise, index) => ({
+      .setButtons(() => [
+        ...filtered.map((exercise, index) => ({
           label: `${index + 1}`,
           style: ButtonStyle.Primary,
-          action: async (ctx) => {
+          action: async (ctx: MenuContext<ExerciseMenuState>) => {
             // Add exercise to the session-wide workout log
             const log =
               ctx.sessionState.get<Exercise[]>('workoutLog') ?? [];
@@ -230,9 +250,19 @@ export function register(flowcord: FlowCord): void {
             await ctx.goBack();
           },
         })),
-      )
+        {
+          label: group === 'all' ? '💪 Upper only' : '🔄 Show all',
+          style: ButtonStyle.Secondary,
+          // Re-runs this menu's factory with new options and fires
+          // onUpdateOptions — no history entry is pushed.
+          action: updateOptions(
+            { group: group === 'all' ? 'upper' : 'all' },
+            { preserveState: true },
+          ),
+        },
+      ])
 
       .setReturnable()
-      .build(),
-  );
+      .build();
+  });
 }

@@ -542,6 +542,54 @@ export class MenuSession implements MenuSessionLike {
   }
 
   /**
+   * Update the current menu options without pushing history.
+   */
+  async updateOptions(
+    options?: Record<string, unknown>,
+    config?: { preserveState?: boolean; preserveInstance?: boolean },
+  ): Promise<void> {
+    if (!this._currentMenu) return;
+
+    const preserveState = config?.preserveState === true;
+    const preserveInstance = config?.preserveInstance === true;
+    const nextOptions = options ?? this._currentOptions ?? {};
+
+    const factory = this._engine.menuRegistry.getFactory(
+      this._currentMenu.name,
+    );
+    if (!factory) {
+      throw new Error(
+        `Menu "${this._currentMenu.name}" is not registered (cannot update options).`,
+      );
+    }
+
+    const definition = await factory(this, nextOptions);
+    const newState = preserveState
+      ? this._currentMenu.stateAccessor.current
+      : undefined;
+    if (!preserveInstance) {
+      this._currentMenu = new MenuInstance(
+        definition,
+        this.id,
+        newState,
+      );
+    }
+    this._currentOptions = nextOptions;
+
+    const ctx = this.buildContext(this._currentMenu);
+
+    if (!preserveInstance && definition.setup) {
+      await definition.setup(ctx);
+    }
+
+    await this._emitHook(
+      'onUpdateOptions',
+      ctx,
+      this._currentMenu.definition.hooks,
+    );
+  }
+
+  /**
    * Hard refresh — re-run the menu factory from scratch.
    */
   async hardRefresh(): Promise<void> {
@@ -1451,6 +1499,15 @@ export class MenuSession implements MenuSessionLike {
       },
       close: async () => {
         await this.close();
+      },
+      updateOptions: async (
+        options?: Record<string, unknown>,
+        config?: {
+          preserveState?: boolean;
+          preserveInstance?: boolean;
+        },
+      ) => {
+        await this.updateOptions(options, config);
       },
       hardRefresh: async () => {
         await this.hardRefresh();

@@ -67,6 +67,15 @@ export interface MenuContext<
   close(): Promise<void>;
 
   /**
+   * Update the current menu's options without pushing history.
+   * By default this recreates the menu instance and re-runs setup().
+   */
+  updateOptions(
+    options: Record<string, unknown>,
+    config?: { preserveState?: boolean; preserveInstance?: boolean },
+  ): Promise<void>;
+
+  /**
    * Re-run createMenu from scratch (for menus whose structure changes based on data).
    * Used ~10% of cases.
    */

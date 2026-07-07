@@ -252,6 +252,10 @@ export interface MenuContextLike {
   ): Promise<void>;
   goBack(result?: unknown): Promise<void>;
   close(): Promise<void>;
+  updateOptions(
+    options: Record<string, unknown>,
+    config?: { preserveState?: boolean; preserveInstance?: boolean },
+  ): Promise<void>;
   hardRefresh(): Promise<void>;
   openSubMenu(
     menuId: string,

@@ -23,7 +23,8 @@ export type HookName =
   | 'afterRender'
   | 'onNext'
   | 'onPrevious'
-  | 'onAction';
+  | 'onAction'
+  | 'onUpdateOptions';
 
 /**
  * Map of hook name → hook function.
