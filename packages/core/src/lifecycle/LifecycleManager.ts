@@ -28,6 +28,7 @@ export class LifecycleManager {
     name: HookName,
     ctx: MenuContext,
     menuHooks?: MenuHooks,
+    ...args: [previousOptions?: Record<string, unknown>]
   ): Promise<void> {
     // Global hooks fire first
     const globalHooks = this._globalHooks.get(name);
@@ -40,7 +41,16 @@ export class LifecycleManager {
     // Menu-specific hook
     const menuHook = menuHooks?.[name];
     if (menuHook) {
-      await menuHook(ctx);
+      if (name === 'onUpdateOptions') {
+        await (
+          menuHook as (
+            context: MenuContext,
+            previousOptions: Record<string, unknown>,
+          ) => Promise<void> | void
+        )(ctx, args[0] ?? {});
+      } else {
+        await (menuHook as HookFn)(ctx);
+      }
     }
   }
 }

@@ -4,7 +4,11 @@ import type {
   MenuSessionLike,
   ContextExtension,
 } from '../context/MenuContext';
-import type { HookFn, MenuHooks } from '../lifecycle/hooks';
+import type {
+  HookFn,
+  MenuHooks,
+  OnUpdateOptionsHookFn,
+} from '../lifecycle/hooks';
 import type {
   Awaitable,
   ButtonConfig,
@@ -497,6 +501,11 @@ export class MenuBuilder<
 
   onAction(fn: HookFn<TCtx>): this {
     this._hooks.onAction = fn;
+    return this;
+  }
+
+  onUpdateOptions(fn: OnUpdateOptionsHookFn<TCtx>): this {
+    this._hooks.onUpdateOptions = fn;
     return this;
   }
 

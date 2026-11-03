@@ -41,3 +41,17 @@ export function closeMenu(): Action {
     await ctx.close();
   };
 }
+
+/**
+ * Update the current menu options without pushing history.
+ * @example action: updateOptions({ categoryId: '4' })
+ * @example action: updateOptions({ filter: 'legendary' }, { preserveState: true })
+ */
+export function updateOptions(
+  options: Record<string, unknown>,
+  config?: { preserveState?: boolean },
+): Action {
+  return async (ctx: MenuContextLike) => {
+    await ctx.updateOptions(options, config);
+  };
+}
