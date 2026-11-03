@@ -87,7 +87,7 @@ describe('updateOptions()', () => {
   });
 
   it('preserveState keeps state and skips setup()', async () => {
-    expect.assertions(2);
+    expect.assertions(5);
     let setupCount = 0;
     const menu = (session: MenuSessionLike) =>
       new MenuBuilder<{ count: number }>(session, 'menu')
@@ -102,6 +102,12 @@ describe('updateOptions()', () => {
         ])
         .setButtons(() => [
           {
+            label: 'Increment',
+            style: ButtonStyle.Secondary,
+            action: async (ctx) =>
+              ctx.state.set('count', ctx.state.get('count') + 1),
+          },
+          {
             label: 'Update',
             style: ButtonStyle.Primary,
             action: updateOptions(
@@ -115,8 +121,13 @@ describe('updateOptions()', () => {
     const sim = new MenuHarness({ menu });
     await sim.start('menu');
     expect(setupCount).toBe(1);
+    expect(sim.hasText('count:1')).toBe(true);
+
+    await sim.click('Increment');
+    expect(sim.hasText('count:2')).toBe(true);
 
     await sim.click('Update');
+    expect(sim.hasText('count:2')).toBe(true);
     expect(setupCount).toBe(1);
   });
 

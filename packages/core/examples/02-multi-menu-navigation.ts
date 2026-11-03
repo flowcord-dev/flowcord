@@ -23,15 +23,15 @@ import {
 // Local dev (flowcord-core repo only):
 // import {
 //   type FlowCord,
+//   type MenuContext,
 //   MenuBuilder,
-//   MenuContext,
 //   goTo,
 //   updateOptions,
 // } from '../src/index.ts';
 import {
   type FlowCord,
+  type MenuContext,
   MenuBuilder,
-  MenuContext,
   goTo,
   updateOptions,
 } from '@flowcord/core';
@@ -58,7 +58,7 @@ interface RecipeState {
   favorited?: boolean;
 }
 
-type RecipeDetailState = Record<string, RecipeState>;
+type RecipeDetailState = Record<string, RecipeState | undefined>;
 
 const recipes: Recipe[] = [
   {
@@ -157,12 +157,6 @@ export function register(flowcord: FlowCord): void {
       session,
       'recipe-detail',
     )
-      .beforeRender((ctx) => {
-        // Example of using beforeRender to set dynamic options based on state
-        favorited =
-          (ctx.state.get(recipe.id) as RecipeState)?.favorited ===
-          true;
-      })
       .setEmbeds(() => [
         new EmbedBuilder()
           .setTitle(`${recipe.emoji} ${recipe.name}`)
@@ -181,52 +175,48 @@ export function register(flowcord: FlowCord): void {
           )
           .setColor(0x2ecc71),
       ])
-      .setButtons(() => [
-        {
-          label: '⬅️',
-          style: ButtonStyle.Secondary,
-          action: updateOptions(
-            { recipeId: previousRecipe.id },
-            { preserveState: true },
-          ),
-        },
-        {
-          label: '📋 View Ingredients',
-          style: ButtonStyle.Primary,
-          // Navigate deeper into the ingredient list
-          action: goTo('ingredients', { recipeId: recipe.id }),
-        },
-        {
-          label: `${favorited ? '✅' : '⭐'} Favorite`,
-          style: ButtonStyle.Success,
-          action: async (ctx) => {
-            // Store a flag — menu re-renders automatically
-            toggleFavorite(ctx, recipe.id); // Example of also updating external state
+      .setButtons((ctx) => {
+        favorited = ctx.state.get(recipe.id)?.favorited === true;
+        return [
+          {
+            label: '⬅️',
+            style: ButtonStyle.Secondary,
+            action: updateOptions(
+              { recipeId: previousRecipe.id },
+              { preserveState: true },
+            ),
           },
-        },
-        {
-          label: '➡️',
-          style: ButtonStyle.Secondary,
-          action: updateOptions(
-            { recipeId: nextRecipe.id },
-            { preserveState: true },
-          ),
-        },
-      ])
+          {
+            label: '📋 View Ingredients',
+            style: ButtonStyle.Primary,
+            // Navigate deeper into the ingredient list
+            action: goTo('ingredients', { recipeId: recipe.id }),
+          },
+          {
+            label: `${favorited ? '✅' : '⭐'} Favorite`,
+            style: ButtonStyle.Success,
+            action: async (ctx) => {
+              // Store a flag — menu re-renders automatically
+              const recipeState = ctx.state.get(recipe.id);
+              const isFavorited = recipeState?.favorited === true;
+              ctx.state.set(recipe.id, { favorited: !isFavorited });
+            },
+          },
+          {
+            label: '➡️',
+            style: ButtonStyle.Secondary,
+            action: updateOptions(
+              { recipeId: nextRecipe.id },
+              { preserveState: true },
+            ),
+          },
+        ];
+      })
       .setReturnable() // Shows ← Back button
       .setTrackedInHistory() // So 'ingredients' can goBack() here
       .setFallbackMenu('cookbook') // If opened directly (empty stack), Back → cookbook
       .build();
   });
-
-  const toggleFavorite = (
-    ctx: MenuContext<RecipeDetailState>,
-    recipeId: string,
-  ) => {
-    const recipeState = ctx.state.get(recipeId);
-    const isFavorited = recipeState?.favorited === true;
-    ctx.state.set(recipeId, { favorited: !isFavorited });
-  };
 
   // ---------------------------------------------------------------------------
   // Menu 3: Ingredients
