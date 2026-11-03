@@ -4,35 +4,44 @@
  * Global hooks fire for every menu, before menu-specific hooks.
  * This is the registration surface — LifecycleManager consumes these.
  */
-import type { HookFn, HookName } from '../lifecycle/hooks';
+import {
+  createHookLists,
+  type HookFnFor,
+  type HookName,
+} from '../lifecycle/hooks';
 import type { LifecycleManager } from '../lifecycle/LifecycleManager';
 
 export class HookRegistry {
-  private readonly _hooks = new Map<HookName, HookFn[]>();
+  private _hooks = createHookLists();
 
   /** Register a global hook. */
-  register(name: HookName, fn: HookFn): void {
-    const hooks = this._hooks.get(name) ?? [];
-    hooks.push(fn);
-    this._hooks.set(name, hooks);
+  register<K extends HookName>(name: K, fn: HookFnFor<K>): void {
+    this._hooks[name].push(fn);
   }
 
   /** Get all hooks for a given lifecycle event. */
-  getHooks(name: HookName): ReadonlyArray<HookFn> {
-    return this._hooks.get(name) ?? [];
+  getHooks<K extends HookName>(name: K): ReadonlyArray<HookFnFor<K>> {
+    return this._hooks[name];
   }
 
   /** Clear all hooks. */
   clear(): void {
-    this._hooks.clear();
+    this._hooks = createHookLists();
   }
 
   /** Sync all registered hooks into a LifecycleManager. */
   applyTo(lifecycleManager: LifecycleManager): void {
-    for (const [name, hooks] of this._hooks) {
-      for (const hook of hooks) {
-        lifecycleManager.registerGlobalHook(name, hook);
-      }
+    for (const name of Object.keys(this._hooks) as HookName[]) {
+      this._applyHooks(name, lifecycleManager);
+    }
+  }
+
+  private _applyHooks<K extends HookName>(
+    name: K,
+    lifecycleManager: LifecycleManager,
+  ): void {
+    for (const hook of this._hooks[name]) {
+      lifecycleManager.registerGlobalHook(name, hook);
     }
   }
 }

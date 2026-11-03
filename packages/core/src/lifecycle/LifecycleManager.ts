@@ -5,52 +5,47 @@
  * All hooks are async and executed sequentially.
  */
 import type { MenuContext } from '../context/MenuContext';
-import type { HookFn, HookName, MenuHooks } from './hooks';
+import {
+  createHookLists,
+  type HookArgs,
+  type HookFnFor,
+  type HookName,
+  type MenuHooks,
+} from './hooks';
 
 export class LifecycleManager {
   /** Global hooks that fire for ALL menus (from HookRegistry / plugins) */
-  private readonly _globalHooks = new Map<HookName, HookFn[]>();
+  private readonly _globalHooks = createHookLists();
 
   /**
    * Register a global hook that fires for every menu.
    */
-  registerGlobalHook(name: HookName, fn: HookFn): void {
-    const hooks = this._globalHooks.get(name) ?? [];
-    hooks.push(fn);
-    this._globalHooks.set(name, hooks);
+  registerGlobalHook<K extends HookName>(
+    name: K,
+    fn: HookFnFor<K>,
+  ): void {
+    this._globalHooks[name].push(fn);
   }
 
   /**
    * Emit a lifecycle hook.
    * Fires global hooks first, then the menu-specific hook.
    */
-  async emit(
-    name: HookName,
+  async emit<K extends HookName>(
+    name: K,
     ctx: MenuContext,
     menuHooks?: MenuHooks,
-    ...args: [previousOptions?: Record<string, unknown>]
+    ...args: HookArgs[K]
   ): Promise<void> {
     // Global hooks fire first
-    const globalHooks = this._globalHooks.get(name);
-    if (globalHooks) {
-      for (const hook of globalHooks) {
-        await hook(ctx);
-      }
+    for (const hook of this._globalHooks[name]) {
+      await hook(ctx, ...args);
     }
 
     // Menu-specific hook
-    const menuHook = menuHooks?.[name];
+    const menuHook: HookFnFor<K> | undefined = menuHooks?.[name];
     if (menuHook) {
-      if (name === 'onUpdateOptions') {
-        await (
-          menuHook as (
-            context: MenuContext,
-            previousOptions: Record<string, unknown>,
-          ) => Promise<void> | void
-        )(ctx, args[0] ?? {});
-      } else {
-        await (menuHook as HookFn)(ctx);
-      }
+      await menuHook(ctx, ...args);
     }
   }
 }

@@ -21,7 +21,11 @@ import type {
   NormalizedTerminalPayload,
 } from '../adapter/types';
 import { EventLog, type SessionEvent } from '../tracing/EventLog';
-import type { HookName, MenuHooks } from '../lifecycle/hooks';
+import type {
+  HookArgs,
+  HookName,
+  MenuHooks,
+} from '../lifecycle/hooks';
 import type {
   MenuContext,
   MenuSessionLike,
@@ -663,11 +667,11 @@ export class MenuSession implements MenuSessionLike {
     this._eventLog?.record(event);
   }
 
-  private async _emitHook(
-    name: HookName,
+  private async _emitHook<K extends HookName>(
+    name: K,
     ctx: MenuContext,
     menuHooks?: MenuHooks,
-    ...args: [previousOptions?: Record<string, unknown>]
+    ...args: HookArgs[K]
   ): Promise<void> {
     await this._lifecycleManager.emit(name, ctx, menuHooks, ...args);
     this._emitEvent({
