@@ -41,10 +41,11 @@ export type { Action, TaggedAction, GuardFn } from './action';
 // Lifecycle
 export { LifecycleManager } from './lifecycle';
 export type {
+  HookArgs,
   HookFn,
+  HookFnFor,
   HookName,
   MenuHooks,
-  OnUpdateOptionsHookFn,
 } from './lifecycle';
 
 // State
