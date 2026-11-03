@@ -6,8 +6,8 @@ import type {
 } from '../context/MenuContext';
 import type {
   HookFn,
+  HookFnFor,
   MenuHooks,
-  OnUpdateOptionsHookFn,
 } from '../lifecycle/hooks';
 import type {
   Awaitable,
@@ -504,7 +504,7 @@ export class MenuBuilder<
     return this;
   }
 
-  onUpdateOptions(fn: OnUpdateOptionsHookFn<TCtx>): this {
+  onUpdateOptions(fn: HookFnFor<'onUpdateOptions', TCtx>): this {
     this._hooks.onUpdateOptions = fn;
     return this;
   }

@@ -41,11 +41,6 @@ export type HookFnFor<K extends HookName, TCtx = MenuContext> = (
   ...args: HookArgs[K]
 ) => Awaitable<void>;
 
-export type OnUpdateOptionsHookFn<TCtx = MenuContext> = HookFnFor<
-  'onUpdateOptions',
-  TCtx
->;
-
 /**
  * Map of hook name → hook function.
  * All hooks are optional.

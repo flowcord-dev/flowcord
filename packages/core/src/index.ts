@@ -46,7 +46,6 @@ export type {
   HookFnFor,
   HookName,
   MenuHooks,
-  OnUpdateOptionsHookFn,
 } from './lifecycle';
 
 // State

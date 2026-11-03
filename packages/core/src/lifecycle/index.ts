@@ -5,5 +5,4 @@ export type {
   HookFnFor,
   HookName,
   MenuHooks,
-  OnUpdateOptionsHookFn,
 } from './hooks';
