@@ -50,7 +50,8 @@ jobs:
           fi
 
       - name: SonarCloud Scan (core)
-        if: github.actor != 'dependabot[bot]'
+        # Secrets (SONAR_TOKEN) are not exposed to workflows triggered from forks.
+        if: github.actor != 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository
         uses: SonarSource/sonarqube-scan-action@713881670b6b3676cda39549040e2d88c70d582e # v8.2.0
         with:
           projectBaseDir: packages/core
@@ -59,7 +60,8 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
       - name: SonarCloud Scan (testing)
-        if: github.actor != 'dependabot[bot]'
+        # Secrets (SONAR_TOKEN) are not exposed to workflows triggered from forks.
+        if: github.actor != 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository
         uses: SonarSource/sonarqube-scan-action@713881670b6b3676cda39549040e2d88c70d582e # v8.2.0
         with:
           projectBaseDir: packages/testing

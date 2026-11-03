@@ -42,6 +42,15 @@ The process below exists to catch those situations *before* code gets written, n
 
 ---
 
+## Branching
+
+Once your issue is approved, how you open the PR depends on your access:
+
+- **Write access to this repo:** push a branch to `flowcord-dev/flowcord` and open the PR from it. CI runs the full SonarCloud analysis.
+- **No write access:** fork the repo and open the PR from your fork. Everything works the same, except the SonarCloud scan is skipped on fork PRs because GitHub doesn't share repository secrets with them. A maintainer will account for that during review.
+
+---
+
 ## Architecture
 
 Before proposing or implementing anything non-trivial, it's worth reading [ARCHITECTURE.md](./packages/core/ARCHITECTURE.md). It covers the session lifecycle, rendering pipeline, navigation system, and state architecture — the stuff that new features need to play nicely with.
