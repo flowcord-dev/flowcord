@@ -21,7 +21,11 @@ import type {
   NormalizedTerminalPayload,
 } from '../adapter/types';
 import { EventLog, type SessionEvent } from '../tracing/EventLog';
-import type { HookName, MenuHooks } from '../lifecycle/hooks';
+import type {
+  HookArgs,
+  HookName,
+  MenuHooks,
+} from '../lifecycle/hooks';
 import type {
   MenuContext,
   MenuSessionLike,
@@ -542,6 +546,50 @@ export class MenuSession implements MenuSessionLike {
   }
 
   /**
+   * Update the current menu options without pushing history.
+   */
+  async updateOptions(
+    options?: Record<string, unknown>,
+    config?: { preserveState?: boolean },
+  ): Promise<void> {
+    if (!this._currentMenu) return;
+
+    const previousOptions = this._currentOptions ?? {};
+    const preserveState = config?.preserveState === true;
+    const nextOptions = options ?? this._currentOptions ?? {};
+
+    const factory = this._engine.menuRegistry.getFactory(
+      this._currentMenu.name,
+    );
+    if (!factory) {
+      throw new Error(
+        `Menu "${this._currentMenu.name}" is not registered (cannot update options).`,
+      );
+    }
+
+    const definition = await factory(this, nextOptions);
+    const newState = preserveState
+      ? this._currentMenu.stateAccessor.current
+      : undefined;
+    const instance = new MenuInstance(definition, this.id, newState);
+    this._currentMenu = instance;
+    this._currentOptions = nextOptions;
+
+    const ctx = this.buildContext(this._currentMenu);
+
+    if (!preserveState && definition.setup) {
+      await definition.setup(ctx);
+    }
+
+    await this._emitHook(
+      'onUpdateOptions',
+      ctx,
+      this._currentMenu.definition.hooks,
+      previousOptions,
+    );
+  }
+
+  /**
    * Hard refresh — re-run the menu factory from scratch.
    */
   async hardRefresh(): Promise<void> {
@@ -619,12 +667,13 @@ export class MenuSession implements MenuSessionLike {
     this._eventLog?.record(event);
   }
 
-  private async _emitHook(
-    name: HookName,
+  private async _emitHook<K extends HookName>(
+    name: K,
     ctx: MenuContext,
     menuHooks?: MenuHooks,
+    ...args: HookArgs[K]
   ): Promise<void> {
-    await this._lifecycleManager.emit(name, ctx, menuHooks);
+    await this._lifecycleManager.emit(name, ctx, menuHooks, ...args);
     this._emitEvent({
       kind: 'hook',
       menuId: ctx.menu.name,
@@ -1451,6 +1500,12 @@ export class MenuSession implements MenuSessionLike {
       },
       close: async () => {
         await this.close();
+      },
+      updateOptions: async (
+        options?: Record<string, unknown>,
+        config?: { preserveState?: boolean },
+      ) => {
+        await this.updateOptions(options, config);
       },
       hardRefresh: async () => {
         await this.hardRefresh();

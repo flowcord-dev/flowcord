@@ -1,2 +1,8 @@
 export { LifecycleManager } from './LifecycleManager';
-export type { HookFn, HookName, MenuHooks } from './hooks';
+export type {
+  HookArgs,
+  HookFn,
+  HookFnFor,
+  HookName,
+  MenuHooks,
+} from './hooks';

@@ -21,8 +21,20 @@ import {
   SlashCommandBuilder,
 } from 'discord.js';
 // Local dev (flowcord-core repo only):
-// import { type FlowCord, MenuBuilder, goTo } from '../src/index.ts';
-import { type FlowCord, MenuBuilder, goTo } from '@flowcord/core';
+// import {
+//   type FlowCord,
+//   type MenuContext,
+//   MenuBuilder,
+//   goTo,
+//   updateOptions,
+// } from '../src/index.ts';
+import {
+  type FlowCord,
+  type MenuContext,
+  MenuBuilder,
+  goTo,
+  updateOptions,
+} from '@flowcord/core';
 
 // --- Slash command definitions ---
 export const commands = [
@@ -41,6 +53,12 @@ interface Recipe {
   cookTime: string;
   ingredients: string[];
 }
+
+interface RecipeState {
+  favorited?: boolean;
+}
+
+type RecipeDetailState = Record<string, RecipeState | undefined>;
 
 const recipes: Recipe[] = [
   {
@@ -129,8 +147,16 @@ export function register(flowcord: FlowCord): void {
   flowcord.registerMenu('recipe-detail', (session, options) => {
     const recipeId = options?.recipeId as string;
     const recipe = recipes.find((r) => r.id === recipeId)!;
+    const recipeIndex = recipes.findIndex((r) => r.id === recipeId);
+    const previousRecipe =
+      recipes[(recipeIndex - 1 + recipes.length) % recipes.length];
+    const nextRecipe = recipes[(recipeIndex + 1) % recipes.length];
+    let favorited = false;
 
-    return new MenuBuilder(session, 'recipe-detail')
+    return new MenuBuilder<RecipeDetailState>(
+      session,
+      'recipe-detail',
+    )
       .setEmbeds(() => [
         new EmbedBuilder()
           .setTitle(`${recipe.emoji} ${recipe.name}`)
@@ -149,22 +175,43 @@ export function register(flowcord: FlowCord): void {
           )
           .setColor(0x2ecc71),
       ])
-      .setButtons(() => [
-        {
-          label: '📋 View Ingredients',
-          style: ButtonStyle.Primary,
-          // Navigate deeper into the ingredient list
-          action: goTo('ingredients', { recipeId: recipe.id }),
-        },
-        {
-          label: '⭐ Favorite',
-          style: ButtonStyle.Success,
-          action: async (ctx) => {
-            // Store a flag — menu re-renders automatically
-            ctx.state.set('favorited', true);
+      .setButtons((ctx) => {
+        favorited = ctx.state.get(recipe.id)?.favorited === true;
+        return [
+          {
+            label: '⬅️',
+            style: ButtonStyle.Secondary,
+            action: updateOptions(
+              { recipeId: previousRecipe.id },
+              { preserveState: true },
+            ),
           },
-        },
-      ])
+          {
+            label: '📋 View Ingredients',
+            style: ButtonStyle.Primary,
+            // Navigate deeper into the ingredient list
+            action: goTo('ingredients', { recipeId: recipe.id }),
+          },
+          {
+            label: `${favorited ? '✅' : '⭐'} Favorite`,
+            style: ButtonStyle.Success,
+            action: async (ctx) => {
+              // Store a flag — menu re-renders automatically
+              const recipeState = ctx.state.get(recipe.id);
+              const isFavorited = recipeState?.favorited === true;
+              ctx.state.set(recipe.id, { favorited: !isFavorited });
+            },
+          },
+          {
+            label: '➡️',
+            style: ButtonStyle.Secondary,
+            action: updateOptions(
+              { recipeId: nextRecipe.id },
+              { preserveState: true },
+            ),
+          },
+        ];
+      })
       .setReturnable() // Shows ← Back button
       .setTrackedInHistory() // So 'ingredients' can goBack() here
       .setFallbackMenu('cookbook') // If opened directly (empty stack), Back → cookbook

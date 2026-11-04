@@ -34,13 +34,19 @@ export type {
 } from './context';
 
 // Actions
-export { goTo, goBack, closeMenu } from './action';
+export { goTo, goBack, closeMenu, updateOptions } from './action';
 export { pipeline, guard, GuardFailedError } from './action';
 export type { Action, TaggedAction, GuardFn } from './action';
 
 // Lifecycle
 export { LifecycleManager } from './lifecycle';
-export type { HookFn, HookName, MenuHooks } from './lifecycle';
+export type {
+  HookArgs,
+  HookFn,
+  HookFnFor,
+  HookName,
+  MenuHooks,
+} from './lifecycle';
 
 // State
 export { StateStore, StateAccessor, MenuStack } from './state';

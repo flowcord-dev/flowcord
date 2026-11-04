@@ -293,6 +293,7 @@ describe('lifecycle hooks', () => {
     'onNext',
     'onPrevious',
     'onAction',
+    'onUpdateOptions',
   ] as const)('%s hook is stored on the definition', (hookName) => {
     const mockFn = jest.fn();
     const builder = embedsBuilder();
