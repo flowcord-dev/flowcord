@@ -4,7 +4,9 @@ coverage/
 *.tsbuildinfo
 .env
 .env.local
-.claude/
+# Keep local agent settings out of the repo, but ship .claude/skills/
+.claude/*
+!.claude/skills/
 .vscode/
 
 # Nx
