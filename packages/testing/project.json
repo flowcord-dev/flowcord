@@ -1,0 +1,22 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "@flowcord/testing",
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{projectRoot}/dist"],
+      "cache": true,
+      "dependsOn": ["^build"],
+      "options": {
+        "cwd": "packages/testing",
+        "parallel": false,
+        "commands": [
+          "node ../../tools/clean-dist.mjs dist",
+          "tsc -b tsconfig.lib.json --force",
+          "tsc -p tsconfig.lib.esm.json",
+          "node ../../tools/finalize-package.mjs ."
+        ]
+      }
+    }
+  }
+}
